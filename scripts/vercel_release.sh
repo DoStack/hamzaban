@@ -11,6 +11,7 @@ fi
 "$PY" manage.py migrate --noinput
 if [ "${VERCEL_ENV:-}" = "production" ]; then
   "$PY" manage.py import_directory
+  "$PY" manage.py ensure_superuser
 fi
 npm ci
 npm run build

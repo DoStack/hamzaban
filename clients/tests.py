@@ -1,6 +1,9 @@
 import json
+import os
+from unittest.mock import patch
 
 from django.conf import settings
+from django.core.management import call_command
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -430,6 +433,7 @@ class VercelDeploymentTests(TestCase):
         release = (settings.BASE_DIR / "scripts" / "vercel_release.sh").read_text(encoding="utf-8")
         self.assertIn("manage.py migrate --noinput", release)
         self.assertIn("manage.py import_directory", release)
+        self.assertIn("manage.py ensure_superuser", release)
         self.assertNotIn("outputDirectory", config)
         project = (settings.BASE_DIR / "pyproject.toml").read_text(encoding="utf-8")
         self.assertIn("[project]", project)
@@ -444,6 +448,20 @@ class VercelDeploymentTests(TestCase):
         self.assertTrue(all(isinstance(link, str) for link in links))
         self.assertTrue(all(isinstance(path, str) for path in settings.UNFOLD["STYLES"]))
         self.assertTrue(all(isinstance(path, str) for path in settings.UNFOLD["SCRIPTS"]))
+
+    def test_ensure_superuser_uses_the_environment_password_once(self):
+        env = {
+            "DJANGO_SUPERUSER_USERNAME": "owner",
+            "DJANGO_SUPERUSER_EMAIL": "owner@example.com",
+            "DJANGO_SUPERUSER_PASSWORD": "Safe-pass-48",
+        }
+        with patch.dict(os.environ, env):
+            call_command("ensure_superuser")
+            call_command("ensure_superuser")
+        user = get_user_model().objects.get(username="owner")
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password("Safe-pass-48"))
+        self.assertEqual(get_user_model().objects.filter(username="owner").count(), 1)
 
     def test_django_prefers_the_direct_neon_connection(self):
         from config.settings import preferred_database_url
