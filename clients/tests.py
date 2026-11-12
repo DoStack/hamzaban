@@ -121,6 +121,71 @@ class RegistrationTests(TestCase):
         self.assertRedirects(response, reverse("client_profile"))
 
 
+class TherapistRegistrationTests(TestCase):
+    def test_landing_is_a_static_page_with_a_register_button(self):
+        response = self.client.get(reverse("therapist_landing"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "به هم‌زبان بپیوندید")
+        self.assertContains(response, reverse("therapist_register"))
+
+    def test_register_page_is_separate_from_the_client_form(self):
+        response = self.client.get(reverse("therapist_register"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ثبت‌نام درمانگر")
+        self.assertContains(response, reverse("register"))
+        self.assertContains(response, reverse("login"))
+
+    def test_valid_registration_creates_a_therapist_and_returns_to_the_landing(self):
+        response = self.client.post(
+            reverse("therapist_register"),
+            {
+                "first_name": "سارا",
+                "username": "sara",
+                "email": "sara@example.com",
+                "password1": "Safe-pass-48",
+                "password2": "Safe-pass-48",
+            },
+        )
+
+        self.assertRedirects(response, reverse("therapist_landing"))
+        user = get_user_model().objects.get(username="sara")
+        self.assertTrue(user.groups.filter(name="therapist").exists())
+        self.assertFalse(user.is_staff)
+        profile = self.client.get(reverse("client_profile"))
+        self.assertRedirects(profile, reverse("therapist_landing"))
+
+    def test_signed_in_client_skips_therapist_registration(self):
+        user = get_user_model().objects.create_user(username="leila", password="Safe-pass-48")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("therapist_register"))
+
+        self.assertRedirects(response, reverse("client_profile"))
+
+    def test_client_login_still_opens_the_profile(self):
+        get_user_model().objects.create_user(username="leila", password="Safe-pass-48")
+
+        response = self.client.post(
+            reverse("login"),
+            {"username": "leila", "password": "Safe-pass-48"},
+        )
+
+        self.assertRedirects(response, reverse("client_profile"))
+
+    def test_therapist_login_opens_the_landing_page(self):
+        user = get_user_model().objects.create_user(username="sara", password="Safe-pass-48")
+        user.groups.create(name="therapist")
+
+        response = self.client.post(
+            reverse("login"),
+            {"username": "sara", "password": "Safe-pass-48"},
+        )
+
+        self.assertRedirects(response, reverse("therapist_landing"))
+
+
 class PublicSiteTests(TestCase):
     def test_home_shows_the_landing_sections(self):
         response = self.client.get(reverse("home"))
@@ -171,6 +236,14 @@ class VercelDeploymentTests(TestCase):
         self.assertIn("Django==5.2", project)
         self.assertIn("psycopg2-binary>=2.9", project)
         self.assertIn("django-unfold>=0.43", project)
+        links = [
+            item["link"]
+            for section in settings.UNFOLD["SIDEBAR"]["navigation"]
+            for item in section["items"]
+        ]
+        self.assertTrue(all(isinstance(link, str) for link in links))
+        self.assertTrue(all(isinstance(path, str) for path in settings.UNFOLD["STYLES"]))
+        self.assertTrue(all(isinstance(path, str) for path in settings.UNFOLD["SCRIPTS"]))
 
 
 class LocalAssetTests(TestCase):

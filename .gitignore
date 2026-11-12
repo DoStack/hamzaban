@@ -9,3 +9,4 @@ node_modules/
 .coverage
 htmlcov/
 .DS_Store
+.vercel

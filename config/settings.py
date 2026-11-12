@@ -3,8 +3,6 @@ import urllib.parse
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
-from django.templatetags.static import static
-from django.urls import reverse_lazy
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -174,24 +172,24 @@ UNFOLD = {
                 "separator": True,
                 "collapsible": False,
                 "items": [
-                    {"title": "داشبورد", "icon": "dashboard", "link": reverse_lazy("admin:index")},
+                    {"title": "داشبورد", "icon": "dashboard", "link": "/admin/"},
                     {
                         "title": "کاربران",
                         "icon": "group",
-                        "link": reverse_lazy("admin:auth_user_changelist"),
+                        "link": "/admin/auth/user/",
                     },
                     {
                         "title": "گروه‌ها",
                         "icon": "admin_panel_settings",
-                        "link": reverse_lazy("admin:auth_group_changelist"),
+                        "link": "/admin/auth/group/",
                     },
                 ],
             },
         ],
     },
-    "STYLES": [lambda request: static("css/admin.css")],
+    "STYLES": ["/static/css/admin.css"],
     "SCRIPTS": [
-        lambda request: static("js/admin-mobile-table.js"),
-        lambda request: static("js/admin-logout-confirm.js"),
+        "/static/js/admin-mobile-table.js",
+        "/static/js/admin-logout-confirm.js",
     ],
 }
