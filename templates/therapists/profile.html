@@ -1,0 +1,29 @@
+{% extends "therapists/panel_base.html" %}
+
+{% block title %}پروفایل درمانگر | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">حساب</p>
+<h1>پروفایل من</h1>
+<p><span class="badge badge--{{ profile.status|lower }}">{{ profile.get_status_display }}</span></p>
+{% if profile.status == "REJECTED" %}
+    <p class="form-error" role="alert">علت رد: {{ profile.get_rejection_code_display }}. با ذخیره، درخواست دوباره در صف بررسی قرار می‌گیرد.</p>
+{% elif profile.status == "PENDING" %}
+    <p class="form-note">درخواست شما در صف بررسی است. هدف بررسی، دو روز کاری است.</p>
+{% elif profile.status == "SUSPENDED" %}
+    <p class="form-error" role="alert">حساب تعلیق شده است. رزروهای آینده لغو و بازپرداخت شده‌اند.</p>
+{% endif %}
+{% if profile.license_file %}
+    <p><a href="{% url 'therapist_license' profile.pk %}">دانلود فایل مجوز</a></p>
+{% endif %}
+<form class="stack-form" method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="form-error" role="alert">{{ field.errors.0 }}</p>{% endif %}
+    {% endfor %}
+    <button class="primary-button" type="submit">ذخیره</button>
+</form>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "therapists/panel_base.html" %}
+
+{% block title %}ساعت‌های من | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">تقویم کاری</p>
+<h1>ساعت‌های من</h1>
+<p class="muted">شبکه از ۷ تا ۲۲:۳۰ با گام ۳۰ دقیقه است. فاصلهٔ بین جلسه‌ها ۱۰ دقیقه، حداقل اطلاع قبلی ۱۲ ساعت، و افق باز ۳۰ روز است. با هر ذخیره، وقت‌های ۳۰ روز آینده دوباره ساخته می‌شوند.</p>
+<p>وقت آزاد الان: {{ open_count }}</p>
+{% if profile.status != "APPROVED" %}
+    <p class="form-note">تا وقتی تأیید نشده باشید، این وقت‌ها در فهرست عمومی دیده نمی‌شوند.</p>
+{% elif open_count == 0 %}
+    <p class="form-note">با این ساعت‌ها هنوز وقت آزادی در ۳۰ روز آینده نیست.</p>
+{% endif %}
+<form method="post">
+    {% csrf_token %}
+    <div class="hour-grid" role="group" aria-label="ساعت‌های هفتگی">
+        <span></span>
+        {% for name in day_names %}<strong>{{ name }}</strong>{% endfor %}
+        {% for row in rows %}
+            <span>{{ row.time }}</span>
+            {% for cell in row.cells %}
+                <label>
+                    <input type="checkbox" name="cells" value="{{ cell.value }}" {% if cell.checked %}checked{% endif %}>
+                    <span class="visually-hidden">{{ row.time }}</span>
+                </label>
+            {% endfor %}
+        {% endfor %}
+    </div>
+    <button class="primary-button" type="submit" name="save-hours" value="1">ذخیرهٔ ساعت‌ها</button>
+</form>
+
+<h2>بستن روز یا ساعت</h2>
+{% if form.non_field_errors %}<p class="form-error" role="alert">{{ form.non_field_errors.0 }}</p>{% endif %}
+<form class="stack-form" method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="form-error" role="alert">{{ field.errors.0 }}</p>{% endif %}
+    {% endfor %}
+    <button class="secondary-button" type="submit">ثبت استثنا</button>
+</form>
+<ul class="about-points">
+    {% for item in closures %}
+        <li>
+            <strong>{{ item.label }}</strong>
+            <form method="post">
+                {% csrf_token %}
+                <button class="danger-button" type="submit" name="delete-closure" value="{{ item.id }}">حذف</button>
+            </form>
+        </li>
+    {% empty %}
+        <li><span>استثنایی ثبت نشده است.</span></li>
+    {% endfor %}
+</ul>
+{% endblock %}

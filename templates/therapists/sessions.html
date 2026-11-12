@@ -1,0 +1,24 @@
+{% extends "therapists/panel_base.html" %}
+
+{% block title %}جلسه‌ها | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">رزروها</p>
+<h1>جلسه‌های من</h1>
+<h2>پیش رو</h2>
+<div class="panel-grid">
+    {% for booking in upcoming %}
+        {% include "therapists/session_card.html" %}
+    {% empty %}
+        <p class="empty-state">جلسهٔ پیش‌رویی نیست.</p>
+    {% endfor %}
+</div>
+<h2>گذشته</h2>
+<div class="panel-grid">
+    {% for booking in earlier %}
+        {% include "therapists/session_card.html" %}
+    {% empty %}
+        <p class="empty-state">جلسهٔ گذشته‌ای نیست.</p>
+    {% endfor %}
+</div>
+{% endblock %}

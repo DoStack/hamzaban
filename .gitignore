@@ -10,3 +10,4 @@ node_modules/
 htmlcov/
 .DS_Store
 .vercel
+.env*

@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#3AA58C">
     <title>{% block title %}هم‌زبان{% endblock %}</title>
     <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+    <link rel="manifest" href="{% url 'manifest' %}">
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
     <script>
         try {
@@ -29,8 +30,13 @@
         </nav>
         <div class="header-actions">
             {% if request.user.is_authenticated %}
-                <a class="header-link" href="{% url 'client_profile' %}">پروفایل</a>
+                {% if is_therapist %}
+                    <a class="header-link" href="{% url 'therapist_home' %}">پنل درمانگر</a>
+                {% else %}
+                    <a class="header-link" href="{% url 'client_profile' %}">پروفایل</a>
+                {% endif %}
                 {% if request.user.is_staff %}<a class="header-link" href="{% url 'admin:index' %}">پنل مدیریت</a>{% endif %}
+                {% include "includes/logout_form.html" with compact=True %}
             {% else %}
                 <a class="header-link" href="{% url 'login' %}">ورود</a>
                 <a class="header-link header-link--solid" href="{% url 'register' %}">ثبت‌نام</a>
@@ -40,6 +46,13 @@
     </header>
 
     <main class="{% block main_class %}page-content{% endblock %}">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{% if message.tags == 'error' %}form-error{% else %}form-note{% endif %}" {% if message.tags == 'error' %}role="alert"{% else %}role="status"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 
@@ -53,13 +66,25 @@
             <a href="{% url 'therapist_landing' %}">ثبت‌نام درمانگر</a>
             <a href="{% url 'home' %}#faq">پرسش‌ها</a>
             {% if request.user.is_authenticated %}
-                <a href="{% url 'client_profile' %}">پروفایل</a>
+                {% if is_therapist %}
+                    <a href="{% url 'therapist_home' %}">پنل درمانگر</a>
+                {% else %}
+                    <a href="{% url 'client_profile' %}">پروفایل</a>
+                {% endif %}
             {% else %}
                 <a href="{% url 'login' %}">ورود</a>
             {% endif %}
         </nav>
     </footer>
     <script src="{% static 'js/theme.js' %}" defer></script>
+    {% if request.user.is_authenticated %}
+        <script src="{% static 'js/logout-confirm.js' %}" defer></script>
+    {% endif %}
+    <script>
+        if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.register("{% url 'service_worker' %}");
+        }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

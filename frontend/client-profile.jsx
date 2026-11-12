@@ -1,9 +1,10 @@
 import { createRoot } from "react-dom/client";
 
 const sections = [
-  { title: "جلسه‌های من", detail: "جلسه‌های پیش‌رو و گذشته در این بخش نمایش داده می‌شوند.", icon: "◷" },
-  { title: "پیدا کردن درمانگر", detail: "درمانگر و زمان مناسب خود را پیدا کنید.", icon: "⌕" },
-  { title: "اطلاعات حساب", detail: "اطلاعات پروفایل خود را مدیریت کنید.", icon: "◎" },
+  { title: "جلسه‌های من", detail: "تقویم جلسه‌ها و وضعیت هر کدام.", href: "/profile/sessions/", icon: "◷" },
+  { title: "پرداخت‌های من", detail: "رسیدهای آفلاین رزرو.", href: "/profile/payments/", icon: "﷼" },
+  { title: "یادآورها", detail: "کارت روزانه، تمرین و پاداش.", href: "/profile/reminders/", icon: "✦" },
+  { title: "پیدا کردن درمانگر", detail: "درمانگرهای تأییدشده و وقت آزاد.", href: "/therapists/", icon: "⌕" },
 ];
 
 function ClientProfile({ name }) {
@@ -18,12 +19,11 @@ function ClientProfile({ name }) {
       </div>
       <div className="overview-grid">
         {sections.map((section) => (
-          <article className="overview-card" key={section.title}>
+          <a className="overview-card" key={section.title} href={section.href}>
             <span className="overview-card__icon" aria-hidden="true">{section.icon}</span>
             <h3>{section.title}</h3>
             <p>{section.detail}</p>
-            <span className="coming-soon">به‌زودی</span>
-          </article>
+          </a>
         ))}
       </div>
     </>

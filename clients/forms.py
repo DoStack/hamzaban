@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import User
 
 THERAPIST_GROUP_NAME = "therapist"
 
@@ -46,13 +46,7 @@ class ClientRegistrationForm(UserCreationForm):
         user.is_superuser = False
         if commit:
             user.save()
-        return user
+            from therapy.models import ClientProfile
 
-
-class TherapistRegistrationForm(ClientRegistrationForm):
-    def save(self, commit=True):
-        user = super().save(commit=commit)
-        if commit:
-            group, _created = Group.objects.get_or_create(name=THERAPIST_GROUP_NAME)
-            user.groups.add(group)
+            ClientProfile.objects.get_or_create(user=user)
         return user

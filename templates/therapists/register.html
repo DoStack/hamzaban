@@ -3,20 +3,27 @@
 {% block title %}ثبت‌نام درمانگر | هم‌زبان{% endblock %}
 
 {% block content %}
-<section class="login-card" aria-labelledby="therapist-register-heading">
+<section class="login-card login-card--wide" aria-labelledby="therapist-register-heading">
     <p class="eyebrow">حساب درمانگر</p>
     <h1 id="therapist-register-heading">ثبت‌نام درمانگر</h1>
-    <p class="muted">برای پیوستن به هم‌زبان، این اطلاعات را وارد کنید.</p>
+    <p class="muted">بعد از ثبت، درخواست شما در صف بررسی می‌ماند تا مدیر آن را تأیید کند.</p>
     {% if form.non_field_errors %}
         <p class="form-error" role="alert">{{ form.non_field_errors.0 }}</p>
     {% endif %}
-    <form method="post" novalidate>
+    <form method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
-        {% for field in form %}
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
-            {% if field.errors %}<p class="form-error" role="alert">{{ field.errors.0 }}</p>{% endif %}
+        {% for title, names in form.field_groups %}
+            <h2>{{ title }}</h2>
+            {% for name in names %}
+                {% for field in form %}
+                    {% if field.name == name %}
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% if field.help_text %}<p class="field-help">{{ field.help_text }}</p>{% endif %}
+                        {% if field.errors %}<p class="form-error" role="alert">{{ field.errors.0 }}</p>{% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
         {% endfor %}
         <button class="primary-button" type="submit">ثبت‌نام</button>
     </form>

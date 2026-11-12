@@ -1,0 +1,48 @@
+{% extends "therapists/panel_base.html" %}
+
+{% block title %}امروز | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">پنل درمانگر</p>
+<h1>امروز</h1>
+<h2>جلسه‌های امروز</h2>
+<div class="panel-grid">
+    {% for booking in sessions %}
+        <article class="record-card">
+            <div class="record-card__row">
+                <strong>{{ booking.client.get_full_name|default:booking.client.username }}</strong>
+                <span class="badge badge--{{ booking.status|lower }}">{{ booking.get_status_display }}</span>
+            </div>
+            <p>{{ booking.when_date }}، ساعت {{ booking.when_time }}</p>
+            {% if booking.prep.pre_session_summary %}
+                <p><strong>خلاصهٔ پیش از جلسه:</strong> {{ booking.prep.pre_session_summary|linebreaksbr }}</p>
+            {% endif %}
+        </article>
+    {% empty %}
+        <p class="empty-state">برای امروز جلسه‌ای نیست.</p>
+    {% endfor %}
+</div>
+<h2>کارهای امروز</h2>
+<div class="panel-grid">
+    {% for task in tasks %}
+        <article class="record-card">
+            <strong>{{ task.title }}</strong>
+            <p>{{ task.client.get_full_name|default:task.client.username }} · {{ task.get_kind_display }}</p>
+            <p class="muted">{% if task.completed_at %}انجام شده{% else %}هنوز باز{% endif %}</p>
+        </article>
+    {% empty %}
+        <p class="empty-state">برای امروز کاری نفرستاده‌اید. از بخش کارها می‌توانید تمرین یا یادآور بسازید.</p>
+    {% endfor %}
+</div>
+<h2>خبر وضعیت</h2>
+<div class="panel-grid">
+    {% for note in notes %}
+        <article class="record-card">
+            <strong>{{ note.title }}</strong>
+            <p>{{ note.body }}</p>
+        </article>
+    {% empty %}
+        <p class="empty-state">خبر تازه‌ای نیست.</p>
+    {% endfor %}
+</div>
+{% endblock %}

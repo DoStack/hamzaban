@@ -1,0 +1,29 @@
+{% extends "clients/account_base.html" %}
+
+{% block title %}پرداخت‌های من | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">رسید آفلاین</p>
+<h1>پرداخت‌های من</h1>
+<p class="muted">رزرو با رسید آفلاین ثبت می‌شود. درمانگر همان رسید را می‌بیند.</p>
+{% if receipts %}
+    <div class="panel-grid">
+        {% for receipt in receipts %}
+            <article class="record-card">
+                <div class="record-card__row">
+                    <strong>{{ receipt.booking.therapist.display_name }}</strong>
+                    <span class="badge badge--{{ receipt.status|lower }}">{{ receipt.get_status_display }}</span>
+                </div>
+                <p>پیگیری: {{ receipt.reference }}</p>
+                <p>{{ receipt.amount_label }}</p>
+                <p class="muted">جلسه: <span class="badge badge--{{ receipt.booking.status|lower }}">{{ receipt.booking.get_status_display }}</span></p>
+                {% if receipt.attachment %}
+                    <a class="secondary-button" href="{% url 'receipt_file' receipt.pk %}">فایل رسید</a>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="empty-state">هنوز رسیدی نفرستاده‌اید.</p>
+{% endif %}
+{% endblock %}

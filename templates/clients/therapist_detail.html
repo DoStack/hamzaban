@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ therapist.name }} | هم‌زبان{% endblock %}
+{% block title %}{{ therapist.display_name }} | هم‌زبان{% endblock %}
 {% block main_class %}landing{% endblock %}
 
 {% block content %}
@@ -8,34 +8,50 @@
     <div class="landing-wrap therapist-detail">
         <p class="eyebrow"><a href="{% url 'therapist_list' %}">درمانگرها</a></p>
         <header class="therapist-detail__header">
-            <span class="avatar avatar--large" aria-hidden="true">{{ therapist.name|first }}</span>
+            {% if therapist.photo %}
+                <img class="avatar avatar--large" src="{% url 'therapist_photo' therapist.slug %}" alt="">
+            {% else %}
+                <span class="avatar avatar--large" aria-hidden="true">{{ therapist.display_name|first }}</span>
+            {% endif %}
             <div>
-                <h1 id="therapist-name">{{ therapist.name }}</h1>
-                <p class="muted">{{ therapist.title }} · {{ therapist.focus }} · {{ therapist.city }}</p>
-                <p class="muted">{{ therapist.sessions }}</p>
+                <h1 id="therapist-name">{{ therapist.display_name }}</h1>
+                <p class="muted">{{ therapist.get_approach_display }} · {{ therapist.years_experience }} سال تجربه · {{ therapist.price_label }}</p>
+                <p class="muted">{{ therapist.specialties|join:"، " }} · {{ therapist.languages|join:"، " }}</p>
+                <p class="muted">{{ therapist.get_gender_display }} · وقت {{ therapist.timezone }}</p>
             </div>
         </header>
-        <p>{{ therapist.about }}</p>
+        <p>{{ therapist.introduction|linebreaksbr }}</p>
+        <p class="muted">مجوز {{ therapist.get_license_type_display }}، صادرشده در {{ therapist.license_country }}.</p>
 
         <section aria-labelledby="schedule-heading">
             <h2 id="schedule-heading">زمان‌های آزاد</h2>
-            <p class="muted">این برنامه نمونه است و هنوز رزرو را ثبت نمی‌کند.</p>
-            <div class="schedule">
-                {% for day in therapist.schedule %}
-                    <section class="schedule__day">
-                        <h3>{{ day.day }}</h3>
-                        <ul>
-                            {% for time in day.times %}
-                                <li><span>{{ time }}</span></li>
-                            {% endfor %}
-                        </ul>
-                    </section>
-                {% endfor %}
-            </div>
-            {% if request.user.is_authenticated %}
-                <p class="schedule-note">حساب شما وارد شده است. ثبت نهایی نوبت در مرحلهٔ بعد اضافه می‌شود.</p>
+            <p class="muted">هر وقت ۳۰ دقیقه است. رزرو با فرستادن رسید آفلاین ثبت می‌شود و تا تأیید درمانگر قطعی نیست.</p>
+            {% if days %}
+                <div class="schedule">
+                    {% for day in days %}
+                        <section class="schedule__day">
+                            <h3>{{ day.label }}</h3>
+                            <ul>
+                                {% for slot in day.slots %}
+                                    <li>
+                                        {% if request.user.is_authenticated and not is_therapist %}
+                                            <a href="{% url 'book_slot' therapist.slug slot.id %}">{{ slot.time }}</a>
+                                        {% else %}
+                                            <span>{{ slot.time }}</span>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </section>
+                    {% endfor %}
+                </div>
             {% else %}
-                <a class="primary-button" href="{% url 'login' %}?next={{ request.path }}">ورود برای ادامه</a>
+                <p class="empty-state">فعلاً وقت آزادی در ۳۰ روز آینده نیست.</p>
+            {% endif %}
+            {% if not request.user.is_authenticated %}
+                <a class="primary-button" href="{% url 'login' %}?next={{ request.path }}">ورود برای رزرو</a>
+            {% elif is_therapist %}
+                <p class="schedule-note">رزرو از حساب درمانگر انجام نمی‌شود.</p>
             {% endif %}
         </section>
     </div>

@@ -4,7 +4,6 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import login, views as auth_views
-from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.templatetags.static import static
@@ -12,8 +11,12 @@ from django.urls import reverse
 from django.utils import translation
 from django.views.decorators.http import require_GET, require_http_methods
 
-from .catalog import FAQS, STATS, get_therapist, search_therapists
-from .forms import THERAPIST_GROUP_NAME, ClientRegistrationForm, TherapistRegistrationForm
+from therapy.access import client_only, is_therapist
+from therapy.forms import TherapistRegistrationForm
+from therapy.services import open_slots_by_day, public_profile, search_public_therapists
+
+from .catalog import FAQS, STATS
+from .forms import ClientRegistrationForm
 
 
 def data_directory():
@@ -38,8 +41,8 @@ def data_file_path(name):
 
 
 def account_home(user):
-    if user.groups.filter(name=THERAPIST_GROUP_NAME).exists():
-        return "therapist_landing"
+    if is_therapist(user):
+        return "therapist_home"
     return "client_profile"
 
 
@@ -59,23 +62,25 @@ def therapist_list(request):
     return render(
         request,
         "clients/therapist_list.html",
-        {"therapists": search_therapists(query), "query": query.strip()},
+        {"therapists": search_public_therapists(query), "query": query.strip()},
     )
 
 
 @require_GET
 def therapist_detail(request, slug):
-    therapist = get_therapist(slug)
+    therapist = public_profile(slug)
     if therapist is None:
         raise Http404("درمانگر پیدا نشد.")
-    return render(request, "clients/therapist_detail.html", {"therapist": therapist})
+    return render(
+        request,
+        "clients/therapist_detail.html",
+        {"therapist": therapist, "days": open_slots_by_day(therapist)},
+    )
 
 
-@login_required
+@client_only
 def client_profile(request):
-    if request.user.groups.filter(name=THERAPIST_GROUP_NAME).exists():
-        return redirect("therapist_landing")
-    return render(request, "clients/profile.html")
+    return render(request, "clients/profile.html", {"section": "overview"})
 
 
 @require_GET
@@ -103,10 +108,13 @@ def therapist_register(request):
         return redirect(account_home(request.user))
 
     with translation.override("fa"):
-        form = TherapistRegistrationForm(request.POST if request.method == "POST" else None)
+        form = TherapistRegistrationForm(
+            request.POST if request.method == "POST" else None,
+            request.FILES if request.method == "POST" else None,
+        )
         if request.method == "POST" and form.is_valid():
             login(request, form.save())
-            return redirect("therapist_landing")
+            return redirect("therapist_home")
 
         return render(request, "therapists/register.html", {"form": form})
 

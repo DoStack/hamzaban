@@ -39,7 +39,7 @@ body {
     line-height: 1.6;
 }
 a { color: inherit; }
-button, input { font: inherit; }
+button, input, select, textarea { font: inherit; }
 :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 .site-header, .site-footer {
@@ -81,6 +81,10 @@ button, input { font: inherit; }
 .profile-menu__item > span:first-child { width: 22px; text-align: center; font-size: 19px; }
 .profile-menu__item.is-active { background: var(--accent-soft); color: var(--accent-dark); font-weight: 700; }
 .profile-menu__item.is-disabled { cursor: default; opacity: .68; }
+.logout-form { margin: 8px 0 0; }
+.logout-form--compact { display: inline; margin: 0; }
+.logout-form__button { width: 100%; border: 0; background: transparent; cursor: pointer; font: inherit; text-align: start; }
+.section-links__button, .header-actions .logout-form__button { width: auto; min-height: 36px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
 .profile-menu__item small { margin-inline-start: auto; color: var(--muted); font-size: 10px; }
 .profile-main { min-height: 420px; padding: clamp(20px, 4vw, 36px); }
 .eyebrow { margin: 0 0 4px; color: var(--accent-dark); font-size: 13px; font-weight: 700; }
@@ -100,7 +104,15 @@ h1 { margin: 0 0 24px; font-size: clamp(24px, 3vw, 32px); line-height: 1.35; }
 .login-card { width: min(460px, 100%); margin: 24px auto; padding: clamp(22px, 5vw, 40px); }
 .login-card form { display: grid; gap: 10px; margin-top: 22px; }
 .login-card label { margin-top: 6px; font-size: 14px; font-weight: 700; }
-.login-card input { width: 100%; min-height: 46px; padding: 9px 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.login-card input:not([type="checkbox"]):not([type="radio"]),
+.login-card select,
+.login-card textarea,
+.stack-form input:not([type="checkbox"]):not([type="radio"]),
+.stack-form select,
+.stack-form textarea { width: 100%; min-height: 46px; padding: 9px 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.login-card textarea, .stack-form textarea { min-height: 96px; resize: vertical; }
+.login-card h2, .profile-main h2 { margin: 18px 0 8px; font-size: 18px; }
+.login-card--wide { width: min(760px, 100%); }
 .primary-button, .secondary-button { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding-inline: 16px; border-radius: 10px; font-weight: 700; text-decoration: none; }
 .primary-button { margin-top: 10px; border: 0; background: var(--accent); color: #fff; cursor: pointer; }
 .secondary-button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
@@ -153,7 +165,7 @@ h1 { margin: 0 0 24px; font-size: clamp(24px, 3vw, 32px); line-height: 1.35; }
 .faq-item p { margin: 0 0 14px; color: var(--muted); }
 .search-bar label { font-size: 14px; font-weight: 700; }
 .search-bar__row { display: flex; gap: 8px; margin-top: 8px; }
-.search-bar input { flex: 1; min-width: 0; min-height: 46px; padding: 9px 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.search-bar input, .search-bar select { flex: 1; min-width: 0; min-height: 46px; padding: 9px 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
 .search-bar .primary-button { margin-top: 0; }
 .therapist-grid, .schedule { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .therapist-grid { margin-top: 18px; }
@@ -168,7 +180,7 @@ h1 { margin: 0 0 24px; font-size: clamp(24px, 3vw, 32px); line-height: 1.35; }
 .therapist-detail .eyebrow a { color: var(--accent-dark); text-decoration: none; }
 .schedule__day { padding: 14px; }
 .schedule__day ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
-.schedule__day li span { display: inline-flex; min-height: 36px; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-weight: 700; }
+.schedule__day li span, .schedule__day li a { display: inline-flex; min-height: 36px; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-weight: 700; text-decoration: none; }
 .empty-state { margin-top: 18px; padding: 18px; border: 1px dashed var(--line); border-radius: 16px; background: var(--surface); }
 
 @media (max-width: 760px) {
@@ -178,6 +190,54 @@ h1 { margin: 0 0 24px; font-size: clamp(24px, 3vw, 32px); line-height: 1.35; }
     .search-bar__row { flex-direction: column; }
     .search-bar .primary-button, .hero__actions .primary-button, .hero__actions .secondary-button { width: 100%; }
     .therapist-detail__header { align-items: flex-start; }
+}
+
+a.overview-card { display: block; color: inherit; text-decoration: none; }
+.messages { display: grid; gap: 8px; margin: 0 0 16px; padding: 0; list-style: none; }
+.form-note { padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); font-size: 13px; }
+.stack-form { display: grid; gap: 8px; margin-top: 12px; }
+.stack-form label { font-size: 14px; font-weight: 700; }
+.choice-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.choice-grid li, .choice-grid label { display: flex; gap: 6px; align-items: center; min-height: 36px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-soft); }
+.panel-grid { display: grid; gap: 12px; }
+.record-card { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
+.record-card p { margin: 6px 0 0; }
+.record-card__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.record-card__row h1 { margin: 0; }
+.button-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.button-row form, .button-row .primary-button, .button-row .secondary-button, .danger-button { margin-top: 0; }
+.danger-button { min-height: 40px; padding: 8px 12px; border: 1px solid #e7b2ac; border-radius: 10px; background: transparent; color: #9e3025; font-weight: 700; cursor: pointer; }
+.badge { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-dark); font-size: 12px; font-weight: 700; }
+.badge--pending, .badge--awaiting, .badge--submitted, .badge--held { background: #fff6e8; color: #8a5a12; }
+.badge--rejected, .badge--cancelled, .badge--suspended, .badge--refunded { background: #fff0ee; color: #9e3025; }
+.badge--completed { background: var(--surface); color: var(--muted); }
+.reward { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-dark); }
+.calendar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.calendar-head .secondary-button { min-height: 40px; }
+.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.calendar__name { color: var(--muted); font-size: 12px; font-weight: 700; text-align: center; }
+.calendar__day { display: grid; align-content: start; gap: 4px; min-height: 76px; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.calendar__day.is-empty { background: transparent; border-color: transparent; }
+.calendar__day small { color: var(--muted); font-size: 11px; }
+.hour-grid { display: grid; grid-template-columns: 64px repeat(7, minmax(36px, 1fr)); gap: 4px; overflow-x: auto; margin: 12px 0; }
+.hour-grid strong, .hour-grid > span { font-size: 12px; }
+.hour-grid label { display: grid; place-items: center; min-height: 28px; border-radius: 8px; background: var(--surface-soft); }
+.section-links { display: none; gap: 8px; margin: 0 0 16px; padding: 0; overflow: auto; list-style: none; }
+img.avatar { object-fit: cover; }
+[data-theme="dark"] .badge--pending,
+[data-theme="dark"] .badge--awaiting,
+[data-theme="dark"] .badge--submitted,
+[data-theme="dark"] .badge--held { background: #3e3424; color: #ffd89a; }
+[data-theme="dark"] .badge--rejected,
+[data-theme="dark"] .badge--cancelled,
+[data-theme="dark"] .badge--suspended,
+[data-theme="dark"] .badge--refunded,
+[data-theme="dark"] .danger-button { background: #472d2c; color: #ffd2cc; border-color: #6d403c; }
+
+@media (max-width: 760px) {
+    .section-links { display: flex; }
+    .calendar__day { min-height: 58px; padding: 4px; }
+    .login-card--wide { width: min(100%, 760px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -6,12 +6,12 @@
 {% block content %}
 <section class="landing-section" aria-labelledby="therapist-heading">
     <div class="landing-wrap">
-        <p class="eyebrow">فهرست نمونه</p>
+        <p class="eyebrow">تأییدشده، با وقت آزاد</p>
         <h1 id="therapist-heading">درمانگرها</h1>
         <form class="search-bar" method="get" role="search">
             <label for="therapist-query">جستجو</label>
             <div class="search-bar__row">
-                <input id="therapist-query" name="q" value="{{ query }}" placeholder="نام، موضوع یا شهر" autocomplete="off">
+                <input id="therapist-query" name="q" value="{{ query }}" placeholder="نام، تخصص یا رویکرد" autocomplete="off">
                 <button class="primary-button" type="submit">جستجو</button>
             </div>
         </form>
@@ -20,18 +20,28 @@
             <div class="therapist-grid">
                 {% for therapist in therapists %}
                     <article class="therapist-card">
-                        <span class="avatar" aria-hidden="true">{{ therapist.name|first }}</span>
+                        {% if therapist.photo %}
+                            <img class="avatar" src="{% url 'therapist_photo' therapist.slug %}" alt="">
+                        {% else %}
+                            <span class="avatar" aria-hidden="true">{{ therapist.display_name|first }}</span>
+                        {% endif %}
                         <div>
-                            <h2>{{ therapist.name }}</h2>
-                            <p>{{ therapist.title }} · {{ therapist.city }}</p>
-                            <p>{{ therapist.focus }}</p>
+                            <h2>{{ therapist.display_name }}</h2>
+                            <p>{{ therapist.get_approach_display }} · {{ therapist.price_label }}</p>
+                            <p>{{ therapist.specialties|join:"، " }}</p>
                         </div>
                         <a class="secondary-button" href="{% url 'therapist_detail' therapist.slug %}">زمان‌های آزاد</a>
                     </article>
                 {% endfor %}
             </div>
         {% else %}
-            <p class="empty-state" role="status">درمانگری با این جستجو پیدا نشد. عبارت دیگری را امتحان کنید.</p>
+            <p class="empty-state" role="status">
+                {% if query %}
+                    درمانگری با این جستجو پیدا نشد. عبارت دیگری را امتحان کنید.
+                {% else %}
+                    هنوز درمانگر تأییدشده‌ای با وقت آزاد ثبت نشده است.
+                {% endif %}
+            </p>
         {% endif %}
     </div>
 </section>

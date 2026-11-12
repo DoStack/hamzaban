@@ -1,0 +1,41 @@
+{% extends "therapists/panel_base.html" %}
+{% load therapy_tags %}
+
+{% block title %}پرونده | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow"><a href="{% url 'therapist_students' %}">دانشجوها</a></p>
+<h1>{{ link.client.get_full_name|default:link.client.username }}</h1>
+<p class="muted">{{ link.client.email }}</p>
+<form class="stack-form" method="post">
+    {% csrf_token %}
+    {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="form-error" role="alert">{{ field.errors.0 }}</p>{% endif %}
+    {% endfor %}
+    <button class="primary-button" type="submit">ذخیرهٔ پرونده</button>
+</form>
+<h2>جلسه‌ها</h2>
+<div class="panel-grid">
+    {% for booking in sessions %}
+        <article class="record-card">
+            <div class="record-card__row">
+                <strong>{{ booking.starts_at|jalali }}</strong>
+                <span class="badge badge--{{ booking.status|lower }}">{{ booking.get_status_display }}</span>
+            </div>
+            {% if booking.summary %}<p>{{ booking.summary|linebreaksbr }}</p>{% endif %}
+        </article>
+    {% empty %}
+        <p class="empty-state">هنوز جلسه‌ای با این مراجع نیست.</p>
+    {% endfor %}
+</div>
+<h2>حال</h2>
+<div class="panel-grid">
+    {% for log in moods %}
+        <article class="record-card"><strong>{{ log.emoji }} {{ log.word }}</strong><p class="muted">{{ log.logged_on|jalali }}</p></article>
+    {% empty %}
+        <p class="empty-state">حالی ثبت نشده است.</p>
+    {% endfor %}
+</div>
+{% endblock %}

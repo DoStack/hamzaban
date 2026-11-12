@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}دسترسی ندارید | هم‌زبان{% endblock %}
+
+{% block content %}
+<section class="login-card" aria-labelledby="forbidden-heading">
+    <h1 id="forbidden-heading">به این پرونده دسترسی ندارید</h1>
+    <p class="muted">این فایل فقط برای صاحبش، درمانگر همان جلسه، یا مدیر باز می‌شود.</p>
+    <a class="primary-button" href="{% url 'home' %}">بازگشت به خانه</a>
+</section>
+{% endblock %}

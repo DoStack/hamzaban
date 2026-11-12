@@ -1,0 +1,53 @@
+{% extends "therapists/panel_base.html" %}
+
+{% block title %}درآمد | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">رسیدها</p>
+<h1>درآمد من</h1>
+{% if totals %}
+    <div class="stat-row">
+        {% for row in totals %}
+            <div><dt>دریافت‌شده</dt><dd>{{ row.label }}</dd></div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="muted">هنوز مبلغ دریافت‌شده‌ای نیست.</p>
+{% endif %}
+<h2>هنوز نرسیده</h2>
+<div class="panel-grid">
+    {% for receipt in pending %}
+        <article class="record-card">
+            <strong>{{ receipt.booking.client.get_full_name|default:receipt.booking.client.username }}</strong>
+            <p>{{ receipt.amount_label }} · {{ receipt.reference }}</p>
+            <span class="badge badge--submitted">{{ receipt.get_status_display }}</span>
+        </article>
+    {% empty %}
+        <p class="empty-state">رسید در انتظاری نیست.</p>
+    {% endfor %}
+</div>
+<h2>دریافت‌شده</h2>
+<div class="panel-grid">
+    {% for receipt in received %}
+        <article class="record-card">
+            <strong>{{ receipt.booking.client.get_full_name|default:receipt.booking.client.username }}</strong>
+            <p>{{ receipt.amount_label }} · {{ receipt.reference }}</p>
+            <span class="badge badge--accepted">{{ receipt.get_status_display }}</span>
+        </article>
+    {% empty %}
+        <p class="empty-state">مبلغ تأییدشده‌ای نیست.</p>
+    {% endfor %}
+</div>
+<h2>بازپرداخت</h2>
+<div class="panel-grid">
+    {% for receipt in refunded %}
+        <article class="record-card">
+            <strong>{{ receipt.booking.client.get_full_name|default:receipt.booking.client.username }}</strong>
+            <p>{{ receipt.amount_label }} · {{ receipt.reference }}</p>
+            <span class="badge badge--refunded">{{ receipt.get_status_display }}</span>
+        </article>
+    {% empty %}
+        <p class="empty-state">بازپرداختی نیست.</p>
+    {% endfor %}
+</div>
+{% endblock %}

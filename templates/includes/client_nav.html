@@ -1,0 +1,22 @@
+{% if nav == "side" %}
+<nav class="profile-menu" aria-label="بخش‌های حساب">
+    <a class="profile-menu__item {% if section == 'overview' %}is-active{% endif %}" href="{% url 'client_profile' %}" {% if section == 'overview' %}aria-current="page"{% endif %}><span aria-hidden="true">⌂</span> نمای کلی</a>
+    <a class="profile-menu__item {% if section == 'sessions' %}is-active{% endif %}" href="{% url 'client_sessions' %}" {% if section == 'sessions' %}aria-current="page"{% endif %}><span aria-hidden="true">◷</span> جلسه‌های من</a>
+    <a class="profile-menu__item {% if section == 'payments' %}is-active{% endif %}" href="{% url 'client_payments' %}" {% if section == 'payments' %}aria-current="page"{% endif %}><span aria-hidden="true">﷼</span> پرداخت‌ها</a>
+    <a class="profile-menu__item {% if section == 'reminders' %}is-active{% endif %}" href="{% url 'client_reminders' %}" {% if section == 'reminders' %}aria-current="page"{% endif %}><span aria-hidden="true">✦</span> یادآورها</a>
+    <a class="profile-menu__item" href="{% url 'therapist_list' %}"><span aria-hidden="true">⌕</span> پیدا کردن درمانگر</a>
+    {% include "includes/logout_form.html" %}
+</nav>
+{% elif nav == "mobile" %}
+<nav class="mobile-profile-nav" aria-label="ناوبری موبایل">
+    <a class="{% if section == 'overview' %}is-active{% endif %}" href="{% url 'client_profile' %}" {% if section == 'overview' %}aria-current="page"{% endif %}><span aria-hidden="true">⌂</span>خانه</a>
+    <a class="{% if section == 'sessions' %}is-active{% endif %}" href="{% url 'client_sessions' %}" {% if section == 'sessions' %}aria-current="page"{% endif %}><span aria-hidden="true">◷</span>جلسه‌ها</a>
+    <a class="{% if section == 'payments' %}is-active{% endif %}" href="{% url 'client_payments' %}" {% if section == 'payments' %}aria-current="page"{% endif %}><span aria-hidden="true">﷼</span>پرداخت</a>
+    <a class="{% if section == 'reminders' %}is-active{% endif %}" href="{% url 'client_reminders' %}" {% if section == 'reminders' %}aria-current="page"{% endif %}><span aria-hidden="true">✦</span>یادآور</a>
+</nav>
+{% else %}
+<nav class="section-links" aria-label="میانبرهای حساب">
+    <a href="{% url 'therapist_list' %}">درمانگرها</a>
+    {% include "includes/logout_form.html" with compact=True %}
+</nav>
+{% endif %}

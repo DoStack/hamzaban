@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "clients",
+    "therapy",
 ]
 
 MIDDLEWARE = [
@@ -82,6 +83,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "therapy.context.account_role",
             ],
         },
     },
@@ -141,6 +143,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/profile/"
+LOGOUT_REDIRECT_URL = "/"
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
@@ -202,6 +205,16 @@ UNFOLD = {
                     {"title": "کاربران و گروه‌ها", "icon": "link", "link": "/admin/auth/user_groups/"},
                     {"title": "اجازه‌های کاربران", "icon": "link", "link": "/admin/auth/user_user_permissions/"},
                     {"title": "اجازه‌های گروه‌ها", "icon": "link", "link": "/admin/auth/group_permissions/"},
+                ],
+            },
+            {
+                "title": "هم‌زبان",
+                "separator": True,
+                "collapsible": False,
+                "items": [
+                    {"title": "صف تأیید درمانگر", "icon": "verified", "link": "/admin/therapy/therapistprofile/"},
+                    {"title": "رزروها", "icon": "event", "link": "/admin/therapy/booking/"},
+                    {"title": "رسیدها", "icon": "receipt_long", "link": "/admin/therapy/receipt/"},
                 ],
             },
             {

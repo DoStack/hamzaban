@@ -6,3 +6,4 @@ DATABASES = {
         "NAME": "/tmp/hamzaban-test.sqlite3",
     }
 }
+MEDIA_ROOT = "/tmp/hamzaban-test-media"

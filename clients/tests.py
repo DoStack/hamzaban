@@ -2,8 +2,12 @@ import json
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+
+from therapy.factories import make_profile, registration_data
+from therapy.models import TherapistProfile
 
 
 class ClientProfileTests(TestCase):
@@ -28,9 +32,29 @@ class ClientProfileTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "نمای کلی")
+        self.assertContains(response, reverse("logout"))
+        self.assertContains(response, "خروج")
+        self.assertContains(response, "logout-confirm.js")
         self.assertContains(response, 'data-display-name="لیلا"')
         self.assertContains(response, "client-profile-app")
         self.assertContains(response, 'src="/static/build/client-profile.js"')
+
+
+class LogoutTests(TestCase):
+    def test_client_and_therapist_profiles_can_log_out(self):
+        client = get_user_model().objects.create_user(username="leila", password="Safe-pass-48", first_name="لیلا")
+        self.client.force_login(client)
+        profile = self.client.get(reverse("client_profile"))
+        self.assertContains(profile, "خروج")
+        logged_out = self.client.post(reverse("logout"))
+        self.assertRedirects(logged_out, reverse("home"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+        therapist = make_profile(status=TherapistProfile.Status.APPROVED)
+        self.client.force_login(therapist.user)
+        panel = self.client.get(reverse("therapist_home"))
+        self.assertContains(panel, "خروج")
+        self.assertEqual(self.client.get(reverse("logout")).status_code, 405)
 
 
 class RegistrationTests(TestCase):
@@ -134,27 +158,24 @@ class TherapistRegistrationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "ثبت‌نام درمانگر")
+        self.assertContains(response, "فایل مجوز")
+        self.assertContains(response, "تخصص‌ها")
         self.assertContains(response, reverse("register"))
         self.assertContains(response, reverse("login"))
 
-    def test_valid_registration_creates_a_therapist_and_returns_to_the_landing(self):
-        response = self.client.post(
-            reverse("therapist_register"),
-            {
-                "first_name": "سارا",
-                "username": "sara",
-                "email": "sara@example.com",
-                "password1": "Safe-pass-48",
-                "password2": "Safe-pass-48",
-            },
-        )
+    def test_valid_registration_creates_a_therapist_and_opens_the_panel(self):
+        payload = registration_data()
+        payload["license_file"] = SimpleUploadedFile("license.pdf", b"%PDF-1.4", content_type="application/pdf")
+        response = self.client.post(reverse("therapist_register"), payload)
 
-        self.assertRedirects(response, reverse("therapist_landing"))
+        self.assertRedirects(response, reverse("therapist_home"))
         user = get_user_model().objects.get(username="sara")
         self.assertTrue(user.groups.filter(name="therapist").exists())
         self.assertFalse(user.is_staff)
+        self.assertEqual(user.therapist_profile.status, TherapistProfile.Status.PENDING)
+        self.assertEqual(user.therapist_profile.display_name, "سارا نیک‌فر")
         profile = self.client.get(reverse("client_profile"))
-        self.assertRedirects(profile, reverse("therapist_landing"))
+        self.assertRedirects(profile, reverse("therapist_home"))
 
     def test_signed_in_client_skips_therapist_registration(self):
         user = get_user_model().objects.create_user(username="leila", password="Safe-pass-48")
@@ -183,7 +204,7 @@ class TherapistRegistrationTests(TestCase):
             {"username": "sara", "password": "Safe-pass-48"},
         )
 
-        self.assertRedirects(response, reverse("therapist_landing"))
+        self.assertRedirects(response, reverse("therapist_home"))
 
 
 class PublicSiteTests(TestCase):
@@ -197,7 +218,24 @@ class PublicSiteTests(TestCase):
         self.assertContains(response, 'id="faq"')
         self.assertContains(response, "زمان‌های صفحهٔ درمانگر قطعی است؟")
 
-    def test_search_filters_the_static_therapist_list(self):
+    def test_search_filters_approved_therapists_with_open_slots(self):
+        make_profile(
+            username="leila",
+            display_name="لیلا بهرامی",
+            specialties=["کودک و نوجوان"],
+            status=TherapistProfile.Status.APPROVED,
+            with_hours=True,
+            slug="leila-bahrami",
+        )
+        make_profile(
+            username="sara",
+            display_name="سارا نیک‌فر",
+            specialties=["اضطراب"],
+            status=TherapistProfile.Status.APPROVED,
+            with_hours=True,
+            slug="sara-nikfar",
+        )
+
         response = self.client.get(reverse("therapist_list"), {"q": "كودك"})
 
         self.assertContains(response, "لیلا بهرامی")
@@ -210,13 +248,21 @@ class PublicSiteTests(TestCase):
         self.assertContains(response, "درمانگری با این جستجو پیدا نشد")
         self.assertNotContains(response, "سارا نیک‌فر")
 
-    def test_therapist_page_shows_sample_schedule(self):
+    def test_therapist_page_shows_open_slots(self):
+        make_profile(
+            username="sara",
+            display_name="سارا نیک‌فر",
+            status=TherapistProfile.Status.APPROVED,
+            with_hours=True,
+            slug="sara-nikfar",
+        )
+
         response = self.client.get(reverse("therapist_detail", args=["sara-nikfar"]))
 
         self.assertContains(response, "سارا نیک‌فر")
         self.assertContains(response, "زمان‌های آزاد")
-        self.assertContains(response, "۱۶:۰۰")
-        self.assertContains(response, "این برنامه نمونه است")
+        self.assertContains(response, "12:00")
+        self.assertNotContains(response, "این برنامه نمونه است")
 
     def test_unknown_therapist_is_not_found(self):
         response = self.client.get(reverse("therapist_detail", args=["missing-person"]))

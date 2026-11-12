@@ -1,0 +1,36 @@
+{% extends "therapists/panel_base.html" %}
+{% load therapy_tags %}
+
+{% block title %}کارها | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">تمرین و یادآور</p>
+<h1>کارها</h1>
+{% if form.non_field_errors %}<p class="form-error" role="alert">{{ form.non_field_errors.0 }}</p>{% endif %}
+<form class="stack-form" method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="form-error" role="alert">{{ field.errors.0 }}</p>{% endif %}
+    {% endfor %}
+    <button class="primary-button" type="submit">ثبت کار</button>
+</form>
+<h2>فرستاده‌شده‌ها</h2>
+<div class="panel-grid">
+    {% for task in tasks %}
+        <article class="record-card">
+            <div class="record-card__row">
+                <strong>{{ task.title }}</strong>
+                <span class="badge">{{ task.get_kind_display }}</span>
+            </div>
+            <p>{{ task.client.get_full_name|default:task.client.username }} · {{ task.due_on|jalali }}</p>
+            <p>{{ task.body|linebreaksbr }}</p>
+            {% if task.reward %}<p class="reward">پاداش: {{ task.reward }}</p>{% endif %}
+            <p class="muted">{% if task.completed_at %}انجام شده{% else %}باز{% endif %}</p>
+        </article>
+    {% empty %}
+        <p class="empty-state">هنوز کاری نفرستاده‌اید.</p>
+    {% endfor %}
+</div>
+{% endblock %}

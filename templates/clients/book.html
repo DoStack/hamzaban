@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}رزرو جلسه | هم‌زبان{% endblock %}
+
+{% block content %}
+<section class="login-card login-card--wide" aria-labelledby="book-heading">
+    <p class="eyebrow"><a href="{% url 'therapist_detail' therapist.slug %}">{{ therapist.display_name }}</a></p>
+    <h1 id="book-heading">رزرو با رسید آفلاین</h1>
+    <p>{{ when }}</p>
+    <p class="muted">قیمت جلسه {{ therapist.price_label }} است. مدت هر وقت ۳۰ دقیقه است. لغو تا {{ notice }} ساعت قبل از شروع ممکن است و وقت را دوباره آزاد می‌کند. اگر رسید تأیید شده باشد، مبلغ بازپرداخت می‌شود.</p>
+    {% if form.non_field_errors %}<p class="form-error" role="alert">{{ form.non_field_errors.0 }}</p>{% endif %}
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<p class="form-error" role="alert">{{ field.errors.0 }}</p>{% endif %}
+        {% endfor %}
+        <button class="primary-button" type="submit">ثبت رسید</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "therapists/panel_base.html" %}
+{% load therapy_tags %}
+
+{% block title %}حال مراجعان | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">هفت روز اخیر</p>
+<h1>حال مراجعان</h1>
+<form class="search-bar" method="get">
+    <label for="client-filter">یک نفر</label>
+    <div class="search-bar__row">
+        <select id="client-filter" name="client">
+            <option value="">همه</option>
+            {% for link in links %}
+                <option value="{{ link.client_id }}" {% if selected and selected.client_id == link.client_id %}selected{% endif %}>
+                    {{ link.client.get_full_name|default:link.client.username }}
+                </option>
+            {% endfor %}
+        </select>
+        <button class="primary-button" type="submit">نمایش</button>
+    </div>
+</form>
+<div class="stat-row">
+    {% for row in summary_rows %}
+        <div>
+            <dt>{{ row.emoji }} {{ row.label }}</dt>
+            <dd>{{ row.count }}</dd>
+        </div>
+    {% endfor %}
+</div>
+{% if quiet %}
+    <h2>بدون ثبت در این هفته</h2>
+    <ul class="about-points">
+        {% for link in quiet %}
+            <li><strong>{{ link.client.get_full_name|default:link.client.username }}</strong><span>این هفته حالی نفرستاده است.</span></li>
+        {% endfor %}
+    </ul>
+{% endif %}
+<h2>ثبت‌ها</h2>
+<div class="panel-grid">
+    {% for log in logs %}
+        <article class="record-card">
+            <strong>{{ log.emoji }} {{ log.word }}</strong>
+            <p class="muted">{{ log.client.get_full_name|default:log.client.username }} · {{ log.logged_on|jalali }}</p>
+        </article>
+    {% empty %}
+        <p class="empty-state">هنوز حالی ثبت نشده است.</p>
+    {% endfor %}
+</div>
+{% endblock %}

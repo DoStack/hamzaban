@@ -1,0 +1,21 @@
+{% extends "therapists/panel_base.html" %}
+
+{% block title %}دانشجوها | هم‌زبان{% endblock %}
+
+{% block account %}
+<div class="record-card__row">
+    <h1>دانشجوهای من</h1>
+    <a class="primary-button" href="{% url 'therapist_add_student' %}">افزودن مراجع</a>
+</div>
+<div class="panel-grid">
+    {% for link in links %}
+        <article class="record-card">
+            <strong>{{ link.client.get_full_name|default:link.client.username }}</strong>
+            <p class="muted">{{ link.client.email }}</p>
+            <a class="secondary-button" href="{% url 'therapist_crm' link.client_id %}">پرونده</a>
+        </article>
+    {% empty %}
+        <p class="empty-state">هنوز مراجعی ندارید. با رزرو یا افزودن دستی، اینجا دیده می‌شود.</p>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="profile-shell">
+    <aside class="profile-sidebar" aria-label="ناوبری درمانگر">
+        <div class="profile-identity">
+            <span class="avatar" aria-hidden="true">{{ request.therapist_profile.display_name|first }}</span>
+            <div>
+                <strong>{{ request.therapist_profile.display_name }}</strong>
+                <span>{{ request.therapist_profile.get_status_display }}</span>
+            </div>
+        </div>
+        {% include "includes/therapist_nav.html" with nav="side" %}
+    </aside>
+    <section class="profile-main">
+        {% include "includes/therapist_nav.html" with nav="links" %}
+        {% block account %}{% endblock %}
+    </section>
+</div>
+{% include "includes/therapist_nav.html" with nav="mobile" %}
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}پروندهٔ درمانگر | هم‌زبان{% endblock %}
+
+{% block content %}
+<section class="login-card" aria-labelledby="missing-profile-heading">
+    <h1 id="missing-profile-heading">پروندهٔ حرفه‌ای پیدا نشد</h1>
+    <p class="muted">حساب شما در گروه درمانگر است، ولی فرم ثبت‌نام درمانگر برای آن کامل نشده. از مدیر بخواهید وضعیت حساب را بررسی کند.</p>
+    <a class="secondary-button" href="{% url 'home' %}">خانه</a>
+</section>
+{% endblock %}

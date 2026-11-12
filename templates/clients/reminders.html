@@ -1,0 +1,75 @@
+{% extends "clients/account_base.html" %}
+{% load therapy_tags %}
+
+{% block title %}یادآورها | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">امروز</p>
+<h1>یادآورها</h1>
+<p class="muted">کارت روزانه، تمرین و خبرها اینجا می‌آیند. نام تلگرام ذخیره می‌شود تا ربات، وقتی وصل شد، همان خبرها را بفرستد.</p>
+
+<section class="record-card" aria-labelledby="mood-heading">
+    <h2 id="mood-heading">حال امروز</h2>
+    {% if mood %}<p>ثبت‌شده: {{ mood.emoji }} {{ mood.word }}</p>{% endif %}
+    <form class="stack-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="mood">
+        <div class="choice-grid" role="radiogroup" aria-label="حال">
+            {% for value, label in moods %}
+                <label><input type="radio" name="emoji" value="{{ value }}" {% if mood.emoji == value %}checked{% endif %} required> {{ value }} {{ label }}</label>
+            {% endfor %}
+        </div>
+        <label for="mood-word">یک کلمه</label>
+        <input id="mood-word" name="word" maxlength="40" required value="{{ mood.word|default:'' }}">
+        <button class="primary-button" type="submit">ثبت حال</button>
+    </form>
+</section>
+
+<section class="record-card" aria-labelledby="telegram-heading">
+    <h2 id="telegram-heading">تلگرام</h2>
+    <form class="stack-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="telegram">
+        <label for="telegram-name">نام کاربری</label>
+        <input id="telegram-name" name="telegram_username" value="{{ telegram }}" autocomplete="off" placeholder="username">
+        <button class="secondary-button" type="submit">ذخیره</button>
+    </form>
+</section>
+
+<h2>کارها</h2>
+<div class="panel-grid">
+    {% for task in tasks %}
+        <article class="record-card">
+            <div class="record-card__row">
+                <strong>{{ task.title }}</strong>
+                <span class="badge">{{ task.get_kind_display }}</span>
+            </div>
+            <p>{{ task.body|linebreaksbr }}</p>
+            <p class="muted">تاریخ: {{ task.due_on|jalali }}</p>
+            {% if task.completed_at %}
+                <p class="reward">انجام شد{% if task.reward %} · {{ task.reward }}{% endif %}</p>
+            {% else %}
+                {% if task.reward %}<p class="reward">پاداش: {{ task.reward }}</p>{% endif %}
+                <form method="post" action="{% url 'client_complete_task' task.pk %}">
+                    {% csrf_token %}
+                    <button class="primary-button" type="submit">انجام دادم</button>
+                </form>
+            {% endif %}
+        </article>
+    {% empty %}
+        <p class="empty-state">برای امروز کاری نیست.</p>
+    {% endfor %}
+</div>
+
+<h2>خبرها</h2>
+<div class="panel-grid">
+    {% for note in notes %}
+        <article class="record-card">
+            <strong>{{ note.title }}</strong>
+            <p>{{ note.body }}</p>
+        </article>
+    {% empty %}
+        <p class="empty-state">خبری نرسیده است.</p>
+    {% endfor %}
+</div>
+{% endblock %}

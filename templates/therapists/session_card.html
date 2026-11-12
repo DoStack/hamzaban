@@ -1,0 +1,38 @@
+<article class="record-card">
+    <div class="record-card__row">
+        <strong>{{ booking.client.get_full_name|default:booking.client.username }}</strong>
+        <span class="badge badge--{{ booking.status|lower }}">{{ booking.get_status_display }}</span>
+    </div>
+    <p>{{ booking.when_date }}، ساعت {{ booking.when_time }} · {{ booking.price_label }}</p>
+    {% if booking.receipt %}
+        <p>رسید {{ booking.receipt.reference }}: <span class="badge badge--{{ booking.receipt.status|lower }}">{{ booking.receipt.get_status_display }}</span></p>
+        {% if booking.receipt.attachment %}
+            <a class="secondary-button" href="{% url 'receipt_file' booking.receipt.pk %}">فایل رسید</a>
+        {% endif %}
+    {% endif %}
+    {% if booking.status == "CONFIRMED" and booking.meet_url %}
+        <a class="primary-button" href="{{ booking.meet_url }}" rel="noopener">ورود به جلسه</a>
+    {% endif %}
+    <div class="button-row">
+        {% if booking.status == "AWAITING" %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="booking" value="{{ booking.pk }}"><button class="primary-button" name="action" value="accept" type="submit">تأیید رسید</button></form>
+            <form method="post">{% csrf_token %}<input type="hidden" name="booking" value="{{ booking.pk }}"><button class="danger-button" name="action" value="reject" type="submit">رد رسید</button></form>
+        {% endif %}
+        {% if booking.status == "AWAITING" or booking.status == "CONFIRMED" %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="booking" value="{{ booking.pk }}"><button class="danger-button" name="action" value="cancel" type="submit">لغو</button></form>
+        {% endif %}
+        {% if booking.status == "CONFIRMED" %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="booking" value="{{ booking.pk }}"><button class="secondary-button" name="action" value="complete" type="submit">انجام شد</button></form>
+        {% endif %}
+    </div>
+    <form class="stack-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="booking" value="{{ booking.pk }}">
+        <input type="hidden" name="action" value="update">
+        <label for="meet-{{ booking.pk }}">پیوند ورود</label>
+        <input id="meet-{{ booking.pk }}" name="meet_url" type="url" value="{{ booking.meet_url }}" inputmode="url" autocomplete="off">
+        <label for="summary-{{ booking.pk }}">خلاصه برای مراجع</label>
+        <textarea id="summary-{{ booking.pk }}" name="summary" rows="3">{{ booking.summary }}</textarea>
+        <button class="secondary-button" type="submit">ذخیرهٔ جلسه</button>
+    </form>
+</article>
