@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}ثبت‌نام درمانگر | هم‌زبان{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+<section class="hero" aria-labelledby="therapist-hero-heading">
+    <div class="landing-wrap hero__inner">
+        <p class="eyebrow">برای درمانگرها</p>
+        <h1 id="therapist-hero-heading">به هم‌زبان بپیوندید</h1>
+        <p class="hero__lead">اگر درمانگر هستید، از اینجا ثبت‌نام کنید.</p>
+        <div class="hero__actions">
+            <a class="primary-button" href="{% url 'therapist_register' %}">ثبت‌نام</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

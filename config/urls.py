@@ -1,23 +1,44 @@
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from clients.views import home, register, therapist_detail, therapist_list
+from clients.views import (
+    HamzabanLoginView,
+    data_file,
+    data_index,
+    favicon,
+    home,
+    register,
+    therapist_detail,
+    therapist_landing,
+    therapist_list,
+    therapist_register,
+)
 
 admin.site.site_header = "هم‌زبان"
 admin.site.site_title = "هم‌زبان"
 admin.site.index_title = "داشبورد"
 
+_admin_urls = admin.site.get_urls
+
+
+def _admin_urls_with_data():
+    return [
+        path("data/", admin.site.admin_view(data_index), name="data_index"),
+        path("data/<str:name>", admin.site.admin_view(data_file), name="data_file"),
+    ] + _admin_urls()
+
+
+admin.site.get_urls = _admin_urls_with_data
+
 urlpatterns = [
+    path("favicon.ico", favicon, name="favicon"),
     path("", home, name="home"),
     path("therapists/", therapist_list, name="therapist_list"),
     path("therapists/<slug:slug>/", therapist_detail, name="therapist_detail"),
     path("admin/", admin.site.urls),
-    path(
-        "accounts/login/",
-        auth_views.LoginView.as_view(template_name="registration/login.html"),
-        name="login",
-    ),
+    path("accounts/login/", HamzabanLoginView.as_view(), name="login"),
     path("accounts/register/", register, name="register"),
+    path("therapist/", therapist_landing, name="therapist_landing"),
+    path("therapist/register/", therapist_register, name="therapist_register"),
     path("profile/", include("clients.urls")),
 ]

@@ -109,7 +109,12 @@ def postgres_from_url(database_url):
     return database
 
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
+def preferred_database_url(environ=os.environ):
+    """Use Neon's direct connection when it is present. Django does not use its pooler."""
+    return environ.get("DATABASE_URL_UNPOOLED") or environ.get("DATABASE_URL", "")
+
+
+DATABASE_URL = preferred_database_url()
 DATABASES = {
     "default": postgres_from_url(DATABASE_URL) if DATABASE_URL else {
         "ENGINE": "django.db.backends.postgresql",
@@ -145,6 +150,13 @@ AUTH_PASSWORD_VALIDATORS = [
 
 UNFOLD = {
     "SITE_TITLE": "Hamzaban",
+    "SITE_FAVICONS": [
+        {
+            "rel": "icon",
+            "href": "/static/favicon.svg",
+            "type": "image/svg+xml",
+        },
+    ],
     "SITE_HEADER": "هم‌زبان",
     "SITE_SUBHEADER": "پنل مدیریت",
     "SITE_SYMBOL": "psychology",
@@ -165,7 +177,7 @@ UNFOLD = {
     },
     "SIDEBAR": {
         "show_search": True,
-        "show_all_applications": False,
+        "show_all_applications": True,
         "navigation": [
             {
                 "title": "مدیریت",
@@ -183,6 +195,21 @@ UNFOLD = {
                         "icon": "admin_panel_settings",
                         "link": "/admin/auth/group/",
                     },
+                    {"title": "اجازه‌ها", "icon": "key", "link": "/admin/auth/permission/"},
+                    {"title": "نوع‌های محتوا", "icon": "category", "link": "/admin/contenttypes/contenttype/"},
+                    {"title": "نشست‌ها", "icon": "schedule", "link": "/admin/sessions/session/"},
+                    {"title": "موارد اتفاقات", "icon": "history", "link": "/admin/admin/logentry/"},
+                    {"title": "کاربران و گروه‌ها", "icon": "link", "link": "/admin/auth/user_groups/"},
+                    {"title": "اجازه‌های کاربران", "icon": "link", "link": "/admin/auth/user_user_permissions/"},
+                    {"title": "اجازه‌های گروه‌ها", "icon": "link", "link": "/admin/auth/group_permissions/"},
+                ],
+            },
+            {
+                "title": "data",
+                "separator": True,
+                "collapsible": False,
+                "items": [
+                    {"title": "data", "icon": "description", "link": "/admin/data/"},
                 ],
             },
         ],

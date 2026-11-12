@@ -224,6 +224,96 @@ class PublicSiteTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+class FaviconTests(TestCase):
+    def test_favicon_is_used_on_the_site_and_in_the_admin(self):
+        icon = self.client.get(reverse("favicon"))
+        self.assertRedirects(icon, "/static/favicon.svg", fetch_redirect_response=False)
+
+        for url in (reverse("home"), reverse("therapist_landing"), reverse("admin:login")):
+            response = self.client.get(url)
+            self.assertContains(response, 'href="/static/favicon.svg"')
+
+
+class AdminDataTests(TestCase):
+    def setUp(self):
+        self.staff = get_user_model().objects.create_user(
+            username="admin",
+            password="Safe-pass-48",
+            is_staff=True,
+        )
+
+    def test_anonymous_visitor_cannot_open_the_data_list(self):
+        response = self.client.get(reverse("admin:data_index"))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('admin:login')}?next={reverse('admin:data_index')}",
+            fetch_redirect_response=False,
+        )
+
+    def test_staff_sees_the_roadmap_and_can_open_it(self):
+        self.client.force_login(self.staff)
+
+        response = self.client.get(reverse("admin:data_index"))
+
+        self.assertContains(response, "data")
+        self.assertContains(response, "Hamzaban_roadmap_v1.html")
+        opened = self.client.get(reverse("admin:data_file", args=["Hamzaban_roadmap_v1.html"]))
+        self.assertEqual(opened["Content-Type"], "text/html; charset=utf-8")
+        self.assertContains(opened, "Hamzaban Roadmap v1")
+
+    def test_a_file_outside_the_data_folder_is_not_served(self):
+        self.client.force_login(self.staff)
+
+        missing = self.client.get(reverse("admin:data_file", args=["settings.py"]))
+        escaped = self.client.get(reverse("admin:data_file", args=[".."]))
+
+        self.assertEqual(missing.status_code, 404)
+        self.assertEqual(escaped.status_code, 404)
+
+    def test_client_account_cannot_open_data(self):
+        user = get_user_model().objects.create_user(username="leila", password="Safe-pass-48")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("admin:data_index"))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('admin:login')}?next={reverse('admin:data_index')}",
+            fetch_redirect_response=False,
+        )
+
+
+class AdminTableTests(TestCase):
+    def test_superuser_can_open_every_database_table(self):
+        get_user_model().objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Safe-pass-48",
+        )
+        self.client.force_login(get_user_model().objects.get(username="root"))
+        names = (
+            "auth_user",
+            "auth_group",
+            "auth_permission",
+            "contenttypes_contenttype",
+            "sessions_session",
+            "admin_logentry",
+            "auth_user_groups",
+            "auth_user_user_permissions",
+            "auth_group_permissions",
+        )
+
+        for name in names:
+            response = self.client.get(reverse(f"admin:{name}_changelist"))
+            self.assertEqual(response.status_code, 200, name)
+
+        index = self.client.get(reverse("admin:index"))
+        self.assertContains(index, "اجازه‌ها")
+        self.assertContains(index, "نشست‌ها")
+        self.assertTrue(settings.UNFOLD["SIDEBAR"]["show_all_applications"])
+
+
 class VercelDeploymentTests(TestCase):
     def test_vercel_does_not_publish_a_dist_directory(self):
         config = json.loads((settings.BASE_DIR / "vercel.json").read_text(encoding="utf-8"))
@@ -244,6 +334,18 @@ class VercelDeploymentTests(TestCase):
         self.assertTrue(all(isinstance(link, str) for link in links))
         self.assertTrue(all(isinstance(path, str) for path in settings.UNFOLD["STYLES"]))
         self.assertTrue(all(isinstance(path, str) for path in settings.UNFOLD["SCRIPTS"]))
+
+    def test_django_prefers_the_direct_neon_connection(self):
+        from config.settings import preferred_database_url
+
+        selected = preferred_database_url(
+            {
+                "DATABASE_URL": "postgres://pooled.example/hamzaban",
+                "DATABASE_URL_UNPOOLED": "postgres://direct.example/hamzaban",
+            }
+        )
+
+        self.assertEqual(selected, "postgres://direct.example/hamzaban")
 
 
 class LocalAssetTests(TestCase):

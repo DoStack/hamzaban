@@ -3,7 +3,7 @@ import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const dir = path.dirname(fileURLToPath(import.meta.url));
+const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "data");
 const file = path.join(dir, "Hamzaban_roadmap_v1.html");
 const port = 47321;
 const phases = ["now", "next", "later"];
