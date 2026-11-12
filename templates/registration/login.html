@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}ورود | هم‌زبان{% endblock %}
+
+{% block content %}
+<section class="login-card" aria-labelledby="login-heading">
+    <p class="eyebrow">خوش آمدید</p>
+    <h1 id="login-heading">ورود به هم‌زبان</h1>
+    <p class="muted">برای دیدن پروفایل، وارد حساب خود شوید.</p>
+    {% if form.errors %}<p class="form-error" role="alert">نام کاربری یا گذرواژه درست نیست. دوباره بررسی کنید.</p>{% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <label for="id_username">نام کاربری</label>
+        <input id="id_username" name="username" autocomplete="username" required autofocus>
+        <label for="id_password">گذرواژه</label>
+        <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+        <button class="primary-button" type="submit">ورود</button>
+    </form>
+    <p class="auth-switch">حساب ندارید؟ <a href="{% url 'register' %}">ثبت‌نام</a></p>
+</section>
+{% endblock %}

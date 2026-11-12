@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}هم‌زبان | درمانگر مناسب خود را پیدا کنید{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+<section class="hero" aria-labelledby="hero-heading">
+    <div class="landing-wrap hero__inner">
+        <p class="eyebrow">تراپی، از همین‌جا</p>
+        <h1 id="hero-heading">درمانگر مناسب خود را پیدا کنید</h1>
+        <p class="hero__lead">هم‌زبان فهرست درمانگرها و زمان‌های آزادشان را نشان می‌دهد تا مسیر جلسه را ساده‌تر ببینید.</p>
+        <div class="hero__actions">
+            <a class="primary-button" href="{% url 'therapist_list' %}">دیدن درمانگرها</a>
+            {% if not request.user.is_authenticated %}
+                <a class="secondary-button" href="{% url 'register' %}">ساخت حساب</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="landing-section" aria-labelledby="about-heading">
+    <div class="landing-wrap about-layout">
+        <div>
+            <p class="eyebrow">آشنایی</p>
+            <h2 id="about-heading">هم‌زبان چیست؟</h2>
+            <p class="muted">هم‌زبان یک وب‌سایت برای مراجع و درمانگر است. مسیر اول تراپی است. مراجع درمانگر را می‌بیند، زمان نمونه را نگاه می‌کند و بعدتر جلسه را هماهنگ می‌کند.</p>
+        </div>
+        <ul class="about-points">
+            <li><strong>پیدا کردن درمانگر</strong><span>نام، موضوع یا شهر را جستجو کنید.</span></li>
+            <li><strong>دیدن زمان آزاد</strong><span>برنامهٔ هر درمانگر در صفحهٔ خودش است.</span></li>
+            <li><strong>حساب مراجع</strong><span>فضای شخصی برای ادامه‌ٔ مسیر شماست.</span></li>
+        </ul>
+    </div>
+</section>
+
+<section class="landing-section landing-section--soft" aria-labelledby="stats-heading">
+    <div class="landing-wrap">
+        <h2 id="stats-heading" class="visually-hidden">آمار نمونه</h2>
+        <dl class="stat-row">
+            {% for stat in stats %}
+                <div>
+                    <dt>{{ stat.label }}</dt>
+                    <dd>{{ stat.value }}</dd>
+                </div>
+            {% endfor %}
+        </dl>
+        <p class="stat-note">این عددها نمونهٔ معرفی هستند، نه آمار زنده.</p>
+    </div>
+</section>
+
+<section class="landing-section" id="faq" aria-labelledby="faq-heading">
+    <div class="landing-wrap faq-layout">
+        <div>
+            <p class="eyebrow">پرسش‌ها</p>
+            <h2 id="faq-heading">سؤال‌های رایج</h2>
+        </div>
+        <div class="faq-list">
+            {% for item in faqs %}
+                <details class="faq-item">
+                    <summary>{{ item.question }}</summary>
+                    <p>{{ item.answer }}</p>
+                </details>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

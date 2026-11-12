@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}پروفایل مراجع | هم‌زبان{% endblock %}
+
+{% block content %}
+<div class="profile-shell">
+    <aside class="profile-sidebar" aria-label="ناوبری پروفایل">
+        <div class="profile-identity">
+            <span class="avatar" aria-hidden="true">{{ request.user.get_username|first|upper }}</span>
+            <div>
+                <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
+                <span>حساب مراجع</span>
+            </div>
+        </div>
+        <nav class="profile-menu" aria-label="بخش‌های حساب">
+            <a class="profile-menu__item is-active" href="{% url 'client_profile' %}" aria-current="page">
+                <span aria-hidden="true">⌂</span> نمای کلی
+            </a>
+            <span class="profile-menu__item is-disabled" aria-disabled="true">
+                <span aria-hidden="true">◷</span> جلسه‌های من <small>به‌زودی</small>
+            </span>
+            <a class="profile-menu__item" href="{% url 'therapist_list' %}">
+                <span aria-hidden="true">⌕</span> پیدا کردن درمانگر
+            </a>
+            <span class="profile-menu__item is-disabled" aria-disabled="true">
+                <span aria-hidden="true">⚙</span> اطلاعات حساب <small>به‌زودی</small>
+            </span>
+        </nav>
+    </aside>
+
+    <section class="profile-main" aria-labelledby="profile-heading">
+        <p class="eyebrow">فضای شخصی شما</p>
+        <h1 id="profile-heading">نمای کلی</h1>
+        <div id="client-profile-app"
+             data-display-name="{{ request.user.get_full_name|default:request.user.get_username }}"></div>
+    </section>
+</div>
+
+<nav class="mobile-profile-nav" aria-label="ناوبری موبایل">
+    <a class="is-active" href="{% url 'client_profile' %}" aria-current="page"><span aria-hidden="true">⌂</span>خانه</a>
+    <span aria-disabled="true"><span aria-hidden="true">◷</span>جلسه‌ها</span>
+    <a href="{% url 'therapist_list' %}"><span aria-hidden="true">⌕</span>درمانگرها</a>
+</nav>
+{% endblock %}
+
+{% block scripts %}
+    <script type="module" src="{% static 'build/client-profile.js' %}"></script>
+{% endblock %}

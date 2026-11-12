@@ -1,0 +1,105 @@
+@import url("fonts.css");
+
+html:root {
+    --font-sans: "پیدا", Tahoma, sans-serif;
+}
+
+html,
+body,
+body * {
+    font-family: "پیدا", Tahoma, sans-serif;
+}
+
+.material-symbols-outlined,
+.material-icons {
+    font-family: "Material Symbols Outlined", "Material Icons" !important;
+}
+
+@media (max-width: 700px) {
+    #result_list {
+        display: block;
+        width: 100%;
+        border: 0;
+    }
+
+    #result_list thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    #result_list tbody {
+        display: grid;
+        gap: 12px;
+    }
+
+    #result_list tbody tr {
+        position: relative;
+        display: grid;
+        padding: 12px;
+        border: 1px solid var(--color-base-200, #d9dfe7);
+        border-radius: 12px;
+        background: #fff;
+        color: #1f2937;
+    }
+
+    #result_list tbody td {
+        display: flex !important;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        width: auto !important;
+        padding: 8px 0 !important;
+        border: 0 !important;
+        border-bottom: 1px solid var(--color-base-200, #d9dfe7) !important;
+        text-align: start;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    #result_list tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        color: var(--color-font-subtle, #5d6c7e);
+        font-weight: 600;
+    }
+
+    #result_list tbody td:first-child {
+        position: absolute;
+        inset-inline-end: 12px;
+        top: 12px;
+        width: auto !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    #result_list tbody td:first-child::before { content: none; }
+    #result_list tbody td:nth-child(2) { padding-inline-end: 34px !important; font-weight: 700; }
+    #result_list tbody td:last-child { border-bottom: 0 !important; }
+
+    html.dark #result_list tbody tr,
+    html.scheme-dark #result_list tbody tr,
+    body.dark #result_list tbody tr,
+    body.scheme-dark #result_list tbody tr {
+        border-color: #3a5051;
+        background: #1c2d30;
+        color: #f0f6f4;
+    }
+
+    html.dark #result_list tbody td,
+    html.scheme-dark #result_list tbody td,
+    body.dark #result_list tbody td,
+    body.scheme-dark #result_list tbody td {
+        border-color: #3a5051 !important;
+    }
+
+    html.dark #result_list tbody td::before,
+    html.scheme-dark #result_list tbody td::before,
+    body.dark #result_list tbody td::before,
+    body.scheme-dark #result_list tbody td::before {
+        color: #b3c5c0;
+    }
+}

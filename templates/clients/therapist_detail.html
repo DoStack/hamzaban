@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}{{ therapist.name }} | هم‌زبان{% endblock %}
+{% block main_class %}landing{% endblock %}
+
+{% block content %}
+<article class="landing-section" aria-labelledby="therapist-name">
+    <div class="landing-wrap therapist-detail">
+        <p class="eyebrow"><a href="{% url 'therapist_list' %}">درمانگرها</a></p>
+        <header class="therapist-detail__header">
+            <span class="avatar avatar--large" aria-hidden="true">{{ therapist.name|first }}</span>
+            <div>
+                <h1 id="therapist-name">{{ therapist.name }}</h1>
+                <p class="muted">{{ therapist.title }} · {{ therapist.focus }} · {{ therapist.city }}</p>
+                <p class="muted">{{ therapist.sessions }}</p>
+            </div>
+        </header>
+        <p>{{ therapist.about }}</p>
+
+        <section aria-labelledby="schedule-heading">
+            <h2 id="schedule-heading">زمان‌های آزاد</h2>
+            <p class="muted">این برنامه نمونه است و هنوز رزرو را ثبت نمی‌کند.</p>
+            <div class="schedule">
+                {% for day in therapist.schedule %}
+                    <section class="schedule__day">
+                        <h3>{{ day.day }}</h3>
+                        <ul>
+                            {% for time in day.times %}
+                                <li><span>{{ time }}</span></li>
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endfor %}
+            </div>
+            {% if request.user.is_authenticated %}
+                <p class="schedule-note">حساب شما وارد شده است. ثبت نهایی نوبت در مرحلهٔ بعد اضافه می‌شود.</p>
+            {% else %}
+                <a class="primary-button" href="{% url 'login' %}?next={{ request.path }}">ورود برای ادامه</a>
+            {% endif %}
+        </section>
+    </div>
+</article>
+{% endblock %}

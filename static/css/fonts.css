@@ -1,0 +1,39 @@
+@font-face {
+    font-family: "پیدا";
+    src: url("../fonts/PeydaWeb-Regular.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "پیدا";
+    src: url("../fonts/PeydaWeb-Medium.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "پیدا";
+    src: url("../fonts/PeydaWeb-SemiBold.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "پیدا";
+    src: url("../fonts/PeydaWeb-Bold.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "پیدا";
+    src: url("../fonts/PeydaWeb-ExtraBold.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+}
