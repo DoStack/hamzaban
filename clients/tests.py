@@ -166,6 +166,11 @@ class VercelDeploymentTests(TestCase):
         self.assertEqual(config["framework"], "django")
         self.assertEqual(config["buildCommand"], "npm ci && npm run build")
         self.assertNotIn("outputDirectory", config)
+        project = (settings.BASE_DIR / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn("[project]", project)
+        self.assertIn("Django==5.2", project)
+        self.assertIn("psycopg2-binary>=2.9", project)
+        self.assertIn("django-unfold>=0.43", project)
 
 
 class LocalAssetTests(TestCase):
