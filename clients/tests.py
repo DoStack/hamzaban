@@ -164,8 +164,8 @@ class VercelDeploymentTests(TestCase):
         config = json.loads((settings.BASE_DIR / "vercel.json").read_text(encoding="utf-8"))
 
         self.assertIsNone(config["framework"])
+        self.assertIsNone(config["buildCommand"])
         self.assertIsNone(config["outputDirectory"])
-        self.assertIn("npm run build", config["buildCommand"])
 
 
 class LocalAssetTests(TestCase):
