@@ -163,9 +163,9 @@ class VercelDeploymentTests(TestCase):
     def test_vercel_does_not_publish_a_dist_directory(self):
         config = json.loads((settings.BASE_DIR / "vercel.json").read_text(encoding="utf-8"))
 
-        self.assertIsNone(config["framework"])
-        self.assertIsNone(config["buildCommand"])
-        self.assertIsNone(config["outputDirectory"])
+        self.assertEqual(config["framework"], "django")
+        self.assertEqual(config["buildCommand"], "npm ci && npm run build")
+        self.assertNotIn("outputDirectory", config)
 
 
 class LocalAssetTests(TestCase):
