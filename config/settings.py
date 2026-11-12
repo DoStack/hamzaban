@@ -213,8 +213,17 @@ UNFOLD = {
                 "collapsible": False,
                 "items": [
                     {"title": "صف تأیید درمانگر", "icon": "verified", "link": "/admin/therapy/therapistprofile/"},
+                    {"title": "ساعت‌های هفتگی", "icon": "schedule", "link": "/admin/therapy/availabilitycell/"},
+                    {"title": "استثناهای ساعت", "icon": "event_busy", "link": "/admin/therapy/availabilityclosure/"},
+                    {"title": "وقت‌ها", "icon": "calendar_month", "link": "/admin/therapy/slot/"},
                     {"title": "رزروها", "icon": "event", "link": "/admin/therapy/booking/"},
                     {"title": "رسیدها", "icon": "receipt_long", "link": "/admin/therapy/receipt/"},
+                    {"title": "مراجعان درمانگرها", "icon": "group", "link": "/admin/therapy/clientlink/"},
+                    {"title": "پرونده‌ها", "icon": "folder", "link": "/admin/therapy/clientrecord/"},
+                    {"title": "پروفایل مراجعان", "icon": "person", "link": "/admin/therapy/clientprofile/"},
+                    {"title": "حال روزها", "icon": "mood", "link": "/admin/therapy/moodlog/"},
+                    {"title": "کارها", "icon": "task_alt", "link": "/admin/therapy/task/"},
+                    {"title": "اعلان‌ها", "icon": "notifications", "link": "/admin/therapy/notification/"},
                 ],
             },
             {

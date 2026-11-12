@@ -412,6 +412,18 @@ class AdminTableTests(TestCase):
             "auth_user_groups",
             "auth_user_user_permissions",
             "auth_group_permissions",
+            "therapy_therapistprofile",
+            "therapy_availabilitycell",
+            "therapy_availabilityclosure",
+            "therapy_slot",
+            "therapy_booking",
+            "therapy_receipt",
+            "therapy_clientlink",
+            "therapy_clientrecord",
+            "therapy_clientprofile",
+            "therapy_moodlog",
+            "therapy_task",
+            "therapy_notification",
         )
 
         for name in names:
@@ -421,6 +433,8 @@ class AdminTableTests(TestCase):
         index = self.client.get(reverse("admin:index"))
         self.assertContains(index, "اجازه‌ها")
         self.assertContains(index, "نشست‌ها")
+        self.assertContains(index, "اعلان‌ها")
+        self.assertContains(index, "پرونده‌ها")
         self.assertTrue(settings.UNFOLD["SIDEBAR"]["show_all_applications"])
 
 

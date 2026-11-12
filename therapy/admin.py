@@ -3,7 +3,20 @@ from django.urls import reverse
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 
-from therapy.models import Booking, ClientLink, Receipt, TherapistProfile
+from therapy.models import (
+    AvailabilityCell,
+    AvailabilityClosure,
+    Booking,
+    ClientLink,
+    ClientProfile,
+    ClientRecord,
+    MoodLog,
+    Notification,
+    Receipt,
+    Slot,
+    Task,
+    TherapistProfile,
+)
 from therapy.services import review_deadline, review_is_late
 
 
@@ -78,3 +91,62 @@ class ClientLinkAdmin(ModelAdmin):
     list_display = ("therapist", "client", "created_at")
     search_fields = ("therapist__display_name", "client__username")
     raw_id_fields = ("therapist", "client")
+
+
+@admin.register(AvailabilityCell)
+class AvailabilityCellAdmin(ModelAdmin):
+    list_display = ("profile", "weekday", "start")
+    list_filter = ("weekday",)
+    search_fields = ("profile__display_name",)
+    raw_id_fields = ("profile",)
+
+
+@admin.register(AvailabilityClosure)
+class AvailabilityClosureAdmin(ModelAdmin):
+    list_display = ("profile", "date", "start")
+    search_fields = ("profile__display_name",)
+    raw_id_fields = ("profile",)
+
+
+@admin.register(Slot)
+class SlotAdmin(ModelAdmin):
+    list_display = ("profile", "starts_at", "ends_at", "status")
+    list_filter = ("status",)
+    search_fields = ("profile__display_name",)
+    raw_id_fields = ("profile",)
+
+
+@admin.register(ClientRecord)
+class ClientRecordAdmin(ModelAdmin):
+    list_display = ("link",)
+    search_fields = ("link__client__username", "link__therapist__display_name")
+    raw_id_fields = ("link",)
+
+
+@admin.register(ClientProfile)
+class ClientProfileAdmin(ModelAdmin):
+    list_display = ("user", "telegram_username")
+    search_fields = ("user__username", "telegram_username")
+    raw_id_fields = ("user",)
+
+
+@admin.register(MoodLog)
+class MoodLogAdmin(ModelAdmin):
+    list_display = ("client", "emoji", "word", "logged_on")
+    search_fields = ("client__username", "word")
+    raw_id_fields = ("client",)
+
+
+@admin.register(Task)
+class TaskAdmin(ModelAdmin):
+    list_display = ("title", "client", "therapist", "kind", "due_on", "completed_at")
+    list_filter = ("kind",)
+    search_fields = ("title", "client__username")
+    raw_id_fields = ("client", "therapist")
+
+
+@admin.register(Notification)
+class NotificationAdmin(ModelAdmin):
+    list_display = ("title", "user", "event_key", "created_at", "read_at")
+    search_fields = ("title", "user__username", "event_key")
+    raw_id_fields = ("user",)
