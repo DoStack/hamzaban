@@ -201,6 +201,8 @@ h1 { margin: 0 0 24px; font-size: clamp(24px, 3vw, 32px); line-height: 1.35; }
 .install-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
 .install-row h2 { margin: 0; font-size: 18px; }
 .install-row .primary-button { margin-top: 0; flex: none; }
+.install-steps { margin: 8px 0 0; padding-inline-start: 18px; color: var(--muted); font-size: 14px; }
+.install-steps li { margin: 8px 0; }
 .about-points li, .therapist-card, .schedule__day, .stat-row div { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
 .about-points li { display: grid; gap: 4px; padding: 14px 16px; }
 .about-points span, .stat-note, .schedule-note, .empty-state { color: var(--muted); }

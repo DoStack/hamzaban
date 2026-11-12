@@ -140,7 +140,8 @@ class HamzabanLoginView(auth_views.LoginView):
     template_name = "registration/login.html"
 
     def get(self, request, *args, **kwargs):
-        return render_spa(request, "site")
+        app = request.GET.get("app", "")
+        return render_spa(request, manifest_app=app if app in {"client", "therapist"} else "")
 
     def get_default_redirect_url(self):
         return reverse(account_home(self.request.user))

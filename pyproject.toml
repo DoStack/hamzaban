@@ -15,4 +15,4 @@ package = false
 entrypoint = "config.wsgi:application"
 
 [tool.vercel.scripts]
-build = "npm ci && npm run build"
+build = "sh scripts/vercel_release.sh"

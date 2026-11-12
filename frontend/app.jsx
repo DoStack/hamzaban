@@ -19,6 +19,7 @@ function usePath() {
       if (!link || link.target || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const url = new URL(link.href, window.location.origin);
       if (url.origin !== window.location.origin) return;
+      if (link.hasAttribute("data-reload")) return;
       if (/^\/(admin|api|receipts|licenses|static|sw\.js|manifest\.webmanifest)/.test(url.pathname)) return;
       event.preventDefault();
       go(url.pathname + url.search + url.hash);
@@ -247,24 +248,7 @@ function Identity({ name, caption, photo, bar = false }) {
   );
 }
 
-function InstallApp({ title, detail }) {
-  const [prompt, setPrompt] = useState(null);
-  useEffect(() => {
-    const onPrompt = (event) => {
-      event.preventDefault();
-      setPrompt(event);
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
-  }, []);
-  async function install() {
-    if (!prompt) {
-      toast("از منوی مرورگر، افزودن به صفحهٔ اصلی را بزنید.");
-      return;
-    }
-    prompt.prompt();
-    setPrompt(null);
-  }
+function InstallApp({ title, detail, href }) {
   return (
     <section className="landing-section">
       <div className="landing-wrap">
@@ -273,7 +257,7 @@ function InstallApp({ title, detail }) {
             <h2>{title}</h2>
             <p className="muted">{detail}</p>
           </div>
-          <button className="primary-button" type="button" onClick={install}>نصب برنامه</button>
+          <a className="primary-button" href={href} data-reload>نصب برنامه</a>
         </div>
       </div>
     </section>
@@ -309,7 +293,7 @@ function Home() {
           </ul>
         </div>
       </section>
-      <InstallApp title="برنامهٔ مراجع" detail="جلسه‌ها، پرداخت‌ها و اعلان‌ها را مثل یک برنامه روی گوشی باز کنید." />
+      <InstallApp title="برنامهٔ مراجع" detail="برای نصب، اول وارد صفحهٔ ورود مراجع شوید." href="/accounts/login/?app=client&next=/profile/" />
       <section className="landing-section landing-section--soft">
         <div className="landing-wrap">
           <h2 className="visually-hidden">آمار نمونه</h2>
@@ -465,7 +449,10 @@ function Book({ slug, slotId }) {
 }
 
 function Login() {
-  const next = new URLSearchParams(window.location.search).get("next") || "";
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next") || "";
+  const app = params.get("app");
+  const installing = app === "client" || app === "therapist";
   async function submit(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -479,9 +466,23 @@ function Login() {
   }
   return (
     <section className="login-card">
-      <p className="eyebrow">خوش آمدید</p>
-      <h1>ورود به هم‌زبان</h1>
-      <p className="muted">برای دیدن پروفایل، وارد حساب خود شوید.</p>
+      {installing ? (
+        <>
+          <p className="eyebrow">{app === "client" ? "برنامهٔ مراجع" : "برنامهٔ درمانگر"}</p>
+          <h1>نصب برنامه</h1>
+          <ol className="install-steps">
+            <li>این صفحه را در مرورگر گوشی باز کنید. در آیفون Safari و در اندروید Chrome را استفاده کنید.</li>
+            <li>منوی مرورگر را باز کنید. در Chrome «نصب برنامه» یا «افزودن به صفحهٔ اصلی» را بزنید. در Safari دکمهٔ اشتراک و سپس «افزودن به صفحهٔ اصلی» را بزنید.</li>
+            <li>آیکن هم‌زبان را از صفحهٔ اصلی باز کنید و با فرم زیر وارد شوید.</li>
+          </ol>
+        </>
+      ) : (
+        <>
+          <p className="eyebrow">خوش آمدید</p>
+          <h1>ورود به هم‌زبان</h1>
+          <p className="muted">برای دیدن پروفایل، وارد حساب خود شوید.</p>
+        </>
+      )}
       <form onSubmit={submit}>
         <label htmlFor="id_username">نام کاربری</label>
         <input id="id_username" name="username" autoComplete="username" required autoFocus />
@@ -489,7 +490,7 @@ function Login() {
         <input id="id_password" name="password" type="password" autoComplete="current-password" required />
         <button className="primary-button" type="submit">ورود</button>
       </form>
-      <p className="auth-switch">حساب ندارید؟ <a href="/accounts/register/">ثبت‌نام</a></p>
+      <p className="auth-switch">حساب ندارید؟ <a href={app === "therapist" ? "/therapist/register/" : "/accounts/register/"}>ثبت‌نام</a></p>
     </section>
   );
 }
@@ -544,7 +545,7 @@ function TherapistLanding() {
           </div>
         </div>
       </section>
-      <InstallApp title="برنامهٔ درمانگر" detail="جلسه‌ها، مراجعان و ساعت‌ها را از صفحهٔ اصلی گوشی باز کنید." />
+      <InstallApp title="برنامهٔ درمانگر" detail="برای نصب، اول وارد صفحهٔ ورود درمانگر شوید." href="/accounts/login/?app=therapist&next=/therapist/home/" />
       <section className="landing-section">
         <div className="landing-wrap">
           <p className="eyebrow">شروع</p>
