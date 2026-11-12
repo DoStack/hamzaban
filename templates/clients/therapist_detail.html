@@ -15,7 +15,7 @@
             {% endif %}
             <div>
                 <h1 id="therapist-name">{{ therapist.display_name }}</h1>
-                <p class="muted">{{ therapist.get_approach_display }} · {{ therapist.years_experience }} سال تجربه · {{ therapist.price_label }}</p>
+                <p class="muted">{{ therapist.get_approach_display }}{% if therapist.years_experience %} · {{ therapist.years_experience }} سال تجربه{% endif %} · {{ therapist.price_label }}</p>
                 <p class="muted">{{ therapist.specialties|join:"، " }} · {{ therapist.languages|join:"، " }}</p>
                 <p class="muted">{{ therapist.get_gender_display }} · وقت {{ therapist.timezone }}</p>
             </div>

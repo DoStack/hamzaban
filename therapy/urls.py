@@ -10,11 +10,13 @@ from therapy.views import (
     students,
     tasks,
     therapist_home,
+    therapist_notifications,
     therapist_sessions,
 )
 
 urlpatterns = [
     path("home/", therapist_home, name="therapist_home"),
+    path("notifications/", therapist_notifications, name="therapist_notifications"),
     path("students/", students, name="therapist_students"),
     path("students/add/", add_student, name="therapist_add_student"),
     path("students/<int:user_id>/", crm, name="therapist_crm"),

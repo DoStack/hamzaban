@@ -23,12 +23,14 @@ from therapy.calendar import (
     parse_jalali_date,
     shift_month,
 )
+from therapy.directory_import import directory_slugs, parse_profile
 from therapy.factories import make_client, make_profile, registration_data
 from therapy.models import (
     AvailabilityCell,
     AvailabilityClosure,
     Booking,
     MoodLog,
+    Notification,
     Receipt,
     Slot,
     Task,
@@ -46,6 +48,35 @@ from therapy.services import (
     reject_receipt,
     review_is_late,
 )
+
+
+class DirectoryImportTests(TestCase):
+    def test_profile_page_keeps_the_public_details(self):
+        html = """
+        <main>
+          <h1>انوشه امین‌زاده</h1>
+          <div class="muted">درمانگر زوج و فردی</div>
+          <span class="pill warn">پیش‌نویس — منتظر تأیید</span>
+          <div class="tags"><span class="pill gray">افسردگی</span><span class="pill gray">اضطراب</span></div>
+          <p>روانشناس با دکترای روانشناسی.</p>
+          <table><tr><th>تحصیلات</th><td>دانشگاه تهران</td></tr>
+          <tr><th>شماره‌ی نظام</th><td>پروانه نظام روانشناسی شماره ۳۱۱۸</td></tr></table>
+          <img class="avatar lg" src="/therapists/anoosheh-aminzadeh.jpg" alt="">
+          <input name="zone" value="America/Toronto">
+          <input name="startsAt" value="2026-11-14T13:30:00.000Z">
+          $<!-- -->25
+        </main>
+        """
+        record = parse_profile(html, "anoosheh-aminzadeh")
+        self.assertEqual(record["display_name"], "انوشه امین‌زاده")
+        self.assertEqual(record["license_number"], "3118")
+        self.assertEqual(record["license_type"], "psychology")
+        self.assertIn("خلق", record["specialties"])
+        self.assertIn("دانشگاه تهران", record["introduction"])
+        self.assertNotIn("hamzaban.bigde.li", record["introduction"])
+        self.assertEqual(record["session_price"], "25")
+        self.assertEqual(record["cells"], [(5, time(8, 30))])
+        self.assertEqual(directory_slugs('<a href="/therapists/anoosheh-aminzadeh">x</a><a href="/therapists/a.jpg">'), ["anoosheh-aminzadeh"])
 
 
 class CalendarTests(TestCase):
@@ -127,11 +158,11 @@ class SlotTests(TestCase):
             with_hours=False,
         )
 
-        response = self.client.get(reverse("therapist_list"))
+        names = [item["name"] for item in self.client.get(reverse("api_therapists")).json()["therapists"]]
 
-        self.assertContains(response, approved.display_name)
-        self.assertNotContains(response, pending.display_name)
-        self.assertNotContains(response, closed.display_name)
+        self.assertIn(approved.display_name, names)
+        self.assertNotIn(pending.display_name, names)
+        self.assertNotIn(closed.display_name, names)
         self.assertEqual(self.client.get(reverse("therapist_detail", args=[pending.slug])).status_code, 404)
 
     def test_a_second_reserve_loses_and_cancel_reopens_the_slot(self):
@@ -162,9 +193,9 @@ class SlotTests(TestCase):
         booking.refresh_from_db()
         self.assertEqual(booking.status, Booking.Status.REFUNDED)
         self.assertTrue(profile.slots.filter(starts_at=booking.starts_at, status=Slot.Status.OPEN).exists())
-        self.assertContains(self.client.get(reverse("client_payments")), "بازپرداخت")
+        self.assertIn("بازپرداخت", self.client.get(reverse("api_client_payments")).content.decode())
         self.client.force_login(profile.user)
-        self.assertContains(self.client.get(reverse("therapist_income")), "بازپرداخت")
+        self.assertIn("بازپرداخت", self.client.get(reverse("api_therapist_income")).content.decode())
 
     def test_late_cancel_keeps_the_booking(self):
         profile = make_profile(status=TherapistProfile.Status.APPROVED, with_hours=True)
@@ -195,14 +226,13 @@ class ReceiptAccessTests(TestCase):
         )
 
         self.client.force_login(client)
-        page = self.client.get(reverse("client_payments"))
+        page = self.client.get(reverse("api_client_payments"))
         self.assertContains(page, "REC-1")
-        self.assertContains(page, profile.display_name)
         own_file = self.client.get(reverse("receipt_file", args=[booking.receipt.pk]))
         self.assertEqual(own_file.status_code, 200)
 
         self.client.force_login(profile.user)
-        self.assertContains(self.client.get(reverse("therapist_sessions")), "REC-1")
+        self.assertContains(self.client.get(reverse("api_therapist_sessions")), "REC-1")
         self.assertEqual(self.client.get(reverse("receipt_file", args=[booking.receipt.pk])).status_code, 200)
 
         self.client.force_login(other.user)
@@ -240,9 +270,10 @@ class TherapistPanelTests(TestCase):
             },
         )
         self.client.force_login(student)
-        reminders = self.client.get(reverse("client_reminders"))
+        reminders = self.client.get(reverse("api_client_notifications"))
         self.assertContains(reminders, "تمرین تنفس")
         self.assertContains(reminders, "یک ستاره")
+        self.assertNotContains(reminders, "حال امروز")
         task = Task.objects.get(client=student, title="تمرین تنفس")
         done = self.client.post(reverse("client_complete_task", args=[task.pk]))
         self.assertRedirects(done, reverse("client_reminders"))
@@ -260,10 +291,10 @@ class TherapistPanelTests(TestCase):
         MoodLog.objects.create(client=hidden, emoji="😊", word="سبک", logged_on=timezone.localdate())
 
         self.client.force_login(profile.user)
-        everyone = self.client.get(reverse("therapist_caseload"))
+        everyone = self.client.get(reverse("api_therapist_caseload"))
         self.assertContains(everyone, "سنگین")
         self.assertNotContains(everyone, "سبک")
-        one = self.client.get(reverse("therapist_caseload"), {"client": client.pk})
+        one = self.client.get(reverse("api_therapist_caseload"), {"client": client.pk})
         self.assertContains(one, "سنگین")
         missing = self.client.get(reverse("therapist_caseload"), {"client": hidden.pk})
         self.assertEqual(missing.status_code, 404)
@@ -275,7 +306,7 @@ class TherapistPanelTests(TestCase):
             {"notes": "یادداشت", "mind_map": "نقشه", "reports": "گزارش", "pre_session_summary": "خلاصه"},
         )
         self.assertRedirects(record, reverse("therapist_crm", args=[client.pk]))
-        self.assertContains(self.client.get(reverse("therapist_crm", args=[client.pk])), "نقشه")
+        self.assertContains(self.client.get(reverse("api_therapist_crm", args=[client.pk])), "نقشه")
 
     def test_more_than_five_specialties_are_rejected(self):
         payload = registration_data(specialties=["اضطراب", "خلق", "رابطه", "تروما", "سوگ", "خواب"])
@@ -362,8 +393,8 @@ class PanelSmokeTests(TestCase):
         self.assertRedirects(blocked, reverse("therapist_detail", args=[self.profile.slug]))
 
         self.client.force_login(self.client_user)
-        page = self.client.get(reverse("book_slot", args=[self.profile.slug, slot.pk]))
-        self.assertContains(page, "درمانگر آزاد")
+        page = self.client.get(reverse("api_book", args=[self.profile.slug, slot.pk]))
+        self.assertEqual(page.json()["therapist"], "درمانگر آزاد")
         booked = self.client.post(
             reverse("book_slot", args=[self.profile.slug, slot.pk]),
             {
@@ -377,17 +408,19 @@ class PanelSmokeTests(TestCase):
         local = timezone.localtime(booking.starts_at)
         year, month, _day = gregorian_to_jalali(local.year, local.month, local.day)
 
-        sessions = self.client.get(f"{reverse('client_sessions')}?year={year}&month={month}")
+        sessions = self.client.get(reverse("api_client_sessions"), {"year": year, "month": month})
         self.assertContains(sessions, "درمانگر آزاد")
-        self.assertContains(self.client.get(f"{reverse('client_sessions')}?month=0"), "جلسه")
-        payments = self.client.get(reverse("client_payments"))
+        self.assertIn("next", sessions.json()["calendar"])
+        self.assertEqual(self.client.get(reverse("api_client_sessions"), {"month": "0"}).status_code, 200)
+        payments = self.client.get(reverse("api_client_payments"))
         self.assertContains(payments, "PAY-9")
         receipt = Receipt.objects.get(booking=booking)
         file_page = self.client.get(reverse("receipt_file", args=[receipt.pk]))
         self.assertEqual(file_page.status_code, 200)
 
-        reminders = self.client.get(reverse("client_reminders"))
-        self.assertContains(reminders, "تلگرام")
+        reminders = self.client.get(reverse("api_client_notifications"))
+        self.assertContains(reminders, "رسید ثبت شد")
+        self.assertContains(reminders, reverse("client_payments"))
         self.assertContains(reminders, format_jalali(timezone.localdate()))
         task = Task.objects.get(client=self.client_user, therapist=None)
         done = self.client.post(reverse("client_complete_task", args=[task.pk]))
@@ -406,6 +439,10 @@ class PanelSmokeTests(TestCase):
         self.client.post(reverse("therapist_sessions"), {"booking": booking.pk, "action": "accept"})
         booking.refresh_from_db()
         self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+        latest = Notification.objects.get(user=self.client_user, event_key=f"booking-{booking.pk}")
+        self.assertEqual(latest.title, "رسید تأیید شد")
+        self.assertIn(f"#booking-{booking.pk}", latest.link)
+        self.assertEqual(Notification.objects.filter(user=self.client_user, event_key=f"booking-{booking.pk}").count(), 1)
         self.client.post(
             reverse("therapist_sessions"),
             {"booking": booking.pk, "action": "update", "meet_url": "https://meet.example/room", "summary": "خلاصه"},
@@ -428,18 +465,37 @@ class PanelSmokeTests(TestCase):
             "therapist_students",
             "therapist_caseload",
             "therapist_tasks",
+            "therapist_notifications",
             "therapist_income",
             "therapist_profile",
             "therapist_hours",
             "therapist_sessions",
         ):
-            self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+            page = self.client.get(reverse(name))
+            self.assertEqual(page.status_code, 200)
+            self.assertContains(page, 'src="/static/build/app.js"')
+            self.assertContains(page, "app-shell")
+
+        me = self.client.get(reverse("api_me")).json()
+        self.assertEqual(me["photo"], reverse("therapist_photo", args=[self.profile.slug]))
+
+        plain = make_profile(username="nophoto", display_name="بدون عکس")
+        self.client.force_login(plain.user)
+        self.assertEqual(self.client.get(reverse("api_me")).json()["photo"], "")
+        self.client.force_login(self.profile.user)
 
         photo = self.client.get(reverse("therapist_photo", args=[self.profile.slug]))
         self.assertEqual(photo.status_code, 200)
         license_page = self.client.get(reverse("therapist_license", args=[self.profile.pk]))
         self.assertEqual(license_page.status_code, 200)
-        self.assertEqual(self.client.get(reverse("manifest")).status_code, 200)
+        home = self.client.get(reverse("therapist_home"))
+        self.assertContains(home, "app-shell")
+        self.assertContains(home, "manifest.webmanifest?app=therapist")
+        self.assertNotContains(home, "site-header")
+        manifest = self.client.get(f"{reverse('manifest')}?app=client")
+        self.assertEqual(manifest.json()["start_url"], "/profile/")
+        self.assertEqual(manifest.json()["icons"][0]["sizes"], "192x192")
+        self.assertEqual(self.client.get(f"{reverse('manifest')}?app=therapist").json()["start_url"], "/therapist/home/")
         self.assertEqual(self.client.get(reverse("service_worker")).status_code, 200)
 
         saved = self.client.post(
@@ -495,7 +551,7 @@ class PanelSmokeTests(TestCase):
         self.assertRedirects(record, reverse("therapist_crm", args=[self.client_user.pk]))
         link.record.refresh_from_db()
         self.assertEqual(link.record.pre_session_summary, "خلاصه قبل از جلسه")
-        caseload = self.client.get(reverse("therapist_caseload"), {"client": self.client_user.pk})
+        caseload = self.client.get(reverse("api_therapist_caseload"), {"client": self.client_user.pk})
         self.assertContains(caseload, self.client_user.first_name)
 
         stranger = make_client(username="other", first_name="دیگر")

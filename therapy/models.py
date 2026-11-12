@@ -351,6 +351,8 @@ class Notification(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications")
     title = models.CharField(max_length=140)
     body = models.TextField(validators=[MaxLengthValidator(1000)])
+    link = models.CharField(max_length=240, blank=True)
+    event_key = models.CharField(max_length=80, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
 

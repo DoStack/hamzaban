@@ -1,0 +1,10 @@
+{% extends "clients/account_base.html" %}
+
+{% block title %}اعلانات | هم‌زبان{% endblock %}
+
+{% block account %}
+<p class="eyebrow">خبرها</p>
+<h1>اعلانات</h1>
+<p class="muted">آخرین خبر هر رویداد اینجاست. باز کردن خبر، همان رویداد را نشان می‌دهد.</p>
+{% include "includes/notification_list.html" %}
+{% endblock %}

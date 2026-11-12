@@ -9,17 +9,18 @@
 {% if receipts %}
     <div class="panel-grid">
         {% for receipt in receipts %}
-            <article class="record-card">
+            <article class="record-card payment-card" id="receipt-{{ receipt.pk }}">
                 <div class="record-card__row">
-                    <strong>{{ receipt.booking.therapist.display_name }}</strong>
+                    <strong>{{ receipt.amount_label }}</strong>
                     <span class="badge badge--{{ receipt.status|lower }}">{{ receipt.get_status_display }}</span>
                 </div>
-                <p>پیگیری: {{ receipt.reference }}</p>
-                <p>{{ receipt.amount_label }}</p>
-                <p class="muted">جلسه: <span class="badge badge--{{ receipt.booking.status|lower }}">{{ receipt.booking.get_status_display }}</span></p>
-                {% if receipt.attachment %}
-                    <a class="secondary-button" href="{% url 'receipt_file' receipt.pk %}">فایل رسید</a>
-                {% endif %}
+                <div class="payment-card__meta">
+                    <span>پیگیری {{ receipt.reference }}</span>
+                    <span class="badge badge--{{ receipt.booking.status|lower }}">{{ receipt.booking.get_status_display }}</span>
+                    {% if receipt.attachment %}
+                        <a href="{% url 'receipt_file' receipt.pk %}">فایل رسید</a>
+                    {% endif %}
+                </div>
             </article>
         {% endfor %}
     </div>

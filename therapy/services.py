@@ -3,6 +3,7 @@ from zoneinfo import ZoneInfo
 
 from django.db import transaction
 from django.db.models import Sum
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -15,6 +16,7 @@ from therapy.models import (
     ClientLink,
     ClientRecord,
     Notification,
+    MoodLog,
     Receipt,
     Slot,
     Task,
@@ -50,8 +52,23 @@ def unique_slug(name):
     return slug
 
 
-def notify(user, title, body):
-    return Notification.objects.create(user=user, title=title, body=body)
+def notify(user, title, body, *, link="", event_key=""):
+    """Store the latest news for one event. A repeat update replaces the previous one."""
+    if event_key:
+        note = Notification.objects.filter(user=user, event_key=event_key).first()
+        if note is not None:
+            note.title = title
+            note.body = body
+            note.link = link
+            note.read_at = None
+            note.created_at = timezone.now()
+            note.save(update_fields=["title", "body", "link", "read_at", "created_at"])
+            return note
+    return Notification.objects.create(user=user, title=title, body=body, link=link, event_key=event_key)
+
+
+def _event_link(name, fragment, *args):
+    return f"{reverse(name, args=args)}#{fragment}"
 
 
 def review_deadline(profile):
@@ -181,8 +198,20 @@ def book_slot(slot, client, amount, reference, attachment=None):
         ensure_link(profile, client)
         local = timezone.localtime(locked.starts_at, ZoneInfo(profile.timezone))
         when = f"{format_jalali(local)}، ساعت {local.strftime('%H:%M')}"
-        notify(client, "رسید ثبت شد", "رسید شما برای درمانگر فرستاده شد. جلسه پس از تأیید او قطعی می‌شود.")
-        notify(profile.user, "رسید جدید", f"یک رسید برای جلسهٔ {when} ثبت شد.")
+        notify(
+            client,
+            "رسید ثبت شد",
+            "رسید شما برای درمانگر فرستاده شد. جلسه پس از تأیید او قطعی می‌شود.",
+            link=_event_link("client_payments", f"receipt-{receipt.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
+        notify(
+            profile.user,
+            "رسید جدید",
+            f"یک رسید برای جلسهٔ {when} ثبت شد.",
+            link=_event_link("therapist_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
     return booking
 
 
@@ -213,8 +242,20 @@ def accept_receipt(receipt):
             starts_at__lt=booking.ends_at + gap,
             ends_at__gt=booking.starts_at - gap,
         ).delete()
-        notify(booking.client, "رسید تأیید شد", "جلسهٔ شما قطعی شد.")
-        notify(profile.user, "جلسه قطعی شد", "رسید یک جلسه را تأیید کردید.")
+        notify(
+            booking.client,
+            "رسید تأیید شد",
+            "جلسهٔ شما قطعی شد.",
+            link=_event_link("client_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
+        notify(
+            profile.user,
+            "جلسه قطعی شد",
+            "رسید یک جلسه را تأیید کردید.",
+            link=_event_link("therapist_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
     return True
 
 
@@ -237,7 +278,13 @@ def reject_receipt(receipt):
         if slot_id:
             Slot.objects.filter(pk=slot_id).delete()
         rebuild_slots(profile)
-        notify(booking.client, "رسید رد شد", "درمانگر این رسید را نپذیرفت. اگر وقت آزاد باشد می‌توانید دوباره رزرو کنید.")
+        notify(
+            booking.client,
+            "رسید رد شد",
+            "درمانگر این رسید را نپذیرفت. اگر وقت آزاد باشد می‌توانید دوباره رزرو کنید.",
+            link=_event_link("client_payments", f"receipt-{receipt.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
     return True
 
 
@@ -265,8 +312,20 @@ def cancel_booking(booking, now=None, enforce_notice=True):
             text = "جلسه لغو شد و مبلغ آن بازپرداخت می‌شود. وقت دوباره آزاد است."
         else:
             text = "جلسه لغو شد و وقت دوباره آزاد است."
-        notify(booking.client, "جلسه لغو شد", text)
-        notify(booking.therapist.user, "جلسه لغو شد", text)
+        notify(
+            booking.client,
+            "جلسه لغو شد",
+            text,
+            link=_event_link("client_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
+        notify(
+            booking.therapist.user,
+            "جلسه لغو شد",
+            text,
+            link=_event_link("therapist_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
     return booking
 
 
@@ -308,9 +367,21 @@ def _refund_locked_profile(profile, now):
         if receipt is not None and receipt.status != Receipt.Status.REFUNDED:
             receipt.status = Receipt.Status.REFUNDED
             receipt.save(update_fields=["status"])
-        notify(booking.client, "رزرو لغو شد", "حساب درمانگر تعلیق شد و مبلغ این جلسه بازپرداخت می‌شود.")
+        notify(
+            booking.client,
+            "رزرو لغو شد",
+            "حساب درمانگر تعلیق شد و مبلغ این جلسه بازپرداخت می‌شود.",
+            link=_event_link("client_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
     profile.slots.filter(starts_at__gt=now).delete()
-    notify(profile.user, "حساب تعلیق شد", f"{len(bookings)} رزرو آینده لغو و بازپرداخت شد.")
+    notify(
+        profile.user,
+        "حساب تعلیق شد",
+        f"{len(bookings)} رزرو آینده لغو و بازپرداخت شد.",
+        link=reverse("therapist_income"),
+        event_key="account",
+    )
     return len(bookings)
 
 
@@ -392,17 +463,32 @@ def add_closure(profile, day, start):
     return rebuild_slots(profile)
 
 
+def record_mood(user, emoji, word):
+    MoodLog.objects.update_or_create(
+        client=user,
+        logged_on=timezone.localdate(),
+        defaults={"emoji": emoji, "word": word},
+    )
+    name = user.get_full_name() or user.get_username()
+    for link in user.care_links.select_related("therapist__user"):
+        notify(
+            link.therapist.user,
+            "حال مراجع",
+            f"{name}: {emoji} {word}",
+            link=reverse("therapist_crm", args=[user.pk]),
+            event_key=f"mood-{user.pk}",
+        )
+
+
 def ensure_daily_card(user, today=None):
     today = today or timezone.localdate()
     kind, title, body, reward = DAILY_CARDS[today.toordinal() % len(DAILY_CARDS)]
-    task, created = Task.objects.get_or_create(
+    task, _created = Task.objects.get_or_create(
         client=user,
         therapist=None,
         due_on=today,
         defaults={"kind": kind, "title": title, "body": body, "reward": reward},
     )
-    if created:
-        notify(user, title, body)
     return task
 
 

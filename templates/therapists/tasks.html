@@ -19,7 +19,7 @@
 <h2>فرستاده‌شده‌ها</h2>
 <div class="panel-grid">
     {% for task in tasks %}
-        <article class="record-card">
+        <article class="record-card" id="task-{{ task.pk }}">
             <div class="record-card__row">
                 <strong>{{ task.title }}</strong>
                 <span class="badge">{{ task.get_kind_display }}</span>

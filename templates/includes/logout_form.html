@@ -1,7 +1,7 @@
 <form class="logout-form {% if compact %}logout-form--compact{% endif %}" data-logout method="post" action="{% url 'logout' %}">
     {% csrf_token %}
     <button class="{% if compact %}section-links__button{% else %}profile-menu__item logout-form__button{% endif %}" type="submit">
-        {% if not compact %}<span aria-hidden="true">↩</span>{% endif %}
+        {% if not compact %}{% include "includes/icon.html" with name="logout" %}{% endif %}
         خروج
     </button>
 </form>

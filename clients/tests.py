@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from therapy.factories import make_profile, registration_data
-from therapy.models import TherapistProfile
+from therapy.models import MoodLog, TherapistProfile
 
 
 class ClientProfileTests(TestCase):
@@ -31,13 +31,45 @@ class ClientProfileTests(TestCase):
         response = self.client.get(reverse("client_profile"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "نمای کلی")
-        self.assertContains(response, reverse("logout"))
-        self.assertContains(response, "خروج")
         self.assertContains(response, "logout-confirm.js")
-        self.assertContains(response, 'data-display-name="لیلا"')
-        self.assertContains(response, "client-profile-app")
-        self.assertContains(response, 'src="/static/build/client-profile.js"')
+        self.assertContains(response, "app-shell")
+        self.assertContains(response, "manifest.webmanifest?app=client")
+        self.assertNotContains(response, "site-header")
+        self.assertNotContains(response, "site-footer")
+        self.assertContains(response, 'src="/static/build/app.js"')
+        self.assertEqual(self.client.get(reverse("api_me")).json()["name"], "لیلا")
+
+    def test_home_saves_mood_and_account_saves_telegram(self):
+        user = get_user_model().objects.create_user(
+            username="leila",
+            password="local-test-password",
+            first_name="لیلا",
+            email="leila@example.com",
+        )
+        self.client.force_login(user)
+
+        home = self.client.get(reverse("api_client_home"))
+        self.assertEqual(home.status_code, 200)
+        self.assertTrue(home.json()["tasks"])
+
+        saved = self.client.post(
+            reverse("api_client_home"),
+            data='{"emoji": "😊", "word": "آرام"}',
+            content_type="application/json",
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(MoodLog.objects.get(client=user).word, "آرام")
+
+        page = self.client.get(reverse("client_account"))
+        self.assertContains(page, "app-shell")
+        account = self.client.post(
+            reverse("api_client_account"),
+            data='{"first_name": "لیلا", "email": "leila@example.com", "telegram_username": "@hamzaban_user"}',
+            content_type="application/json",
+        )
+        self.assertEqual(account.status_code, 200)
+        user.client_profile.refresh_from_db()
+        self.assertEqual(user.client_profile.telegram_username, "hamzaban_user")
 
 
 class LogoutTests(TestCase):
@@ -45,7 +77,7 @@ class LogoutTests(TestCase):
         client = get_user_model().objects.create_user(username="leila", password="Safe-pass-48", first_name="لیلا")
         self.client.force_login(client)
         profile = self.client.get(reverse("client_profile"))
-        self.assertContains(profile, "خروج")
+        self.assertContains(profile, "logout-confirm.js")
         logged_out = self.client.post(reverse("logout"))
         self.assertRedirects(logged_out, reverse("home"))
         self.assertNotIn("_auth_user_id", self.client.session)
@@ -53,7 +85,7 @@ class LogoutTests(TestCase):
         therapist = make_profile(status=TherapistProfile.Status.APPROVED)
         self.client.force_login(therapist.user)
         panel = self.client.get(reverse("therapist_home"))
-        self.assertContains(panel, "خروج")
+        self.assertContains(panel, "logout-confirm.js")
         self.assertEqual(self.client.get(reverse("logout")).status_code, 405)
 
 
@@ -62,8 +94,8 @@ class RegistrationTests(TestCase):
         response = self.client.get(reverse("register"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "ثبت‌نام در هم‌زبان")
-        self.assertContains(response, reverse("login"))
+        self.assertContains(response, 'src="/static/build/app.js"')
+        self.assertIn("/accounts/login/", (settings.BASE_DIR / "static/build/app.js").read_text(encoding="utf-8"))
 
     def test_valid_registration_creates_client_and_opens_profile(self):
         response = self.client.post(
@@ -84,8 +116,7 @@ class RegistrationTests(TestCase):
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
         self.assertTrue(user.check_password("Safe-pass-48"))
-        profile = self.client.get(reverse("client_profile"))
-        self.assertContains(profile, 'data-display-name="لیلا"')
+        self.assertEqual(self.client.get(reverse("api_me")).json()["name"], "لیلا")
 
     def test_duplicate_username_or_email_is_rejected(self):
         get_user_model().objects.create_user(
@@ -150,18 +181,19 @@ class TherapistRegistrationTests(TestCase):
         response = self.client.get(reverse("therapist_landing"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "به هم‌زبان بپیوندید")
-        self.assertContains(response, reverse("therapist_register"))
+        self.assertContains(response, 'src="/static/build/app.js"')
+        self.assertIn(reverse("therapist_register"), (settings.BASE_DIR / "static/build/app.js").read_text(encoding="utf-8"))
 
     def test_register_page_is_separate_from_the_client_form(self):
         response = self.client.get(reverse("therapist_register"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "ثبت‌نام درمانگر")
-        self.assertContains(response, "فایل مجوز")
-        self.assertContains(response, "تخصص‌ها")
-        self.assertContains(response, reverse("register"))
-        self.assertContains(response, reverse("login"))
+        script = (settings.BASE_DIR / "static/build/app.js").read_text(encoding="utf-8")
+        self.assertContains(response, 'src="/static/build/app.js"')
+        self.assertIn("ثبت‌نام درمانگر", script)
+        self.assertIn("فایل مجوز", script)
+        self.assertIn(reverse("register"), script)
+        self.assertIn(reverse("login"), script)
 
     def test_valid_registration_creates_a_therapist_and_opens_the_panel(self):
         payload = registration_data()
@@ -212,11 +244,17 @@ class PublicSiteTests(TestCase):
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "درمانگر مناسب خود را پیدا کنید")
-        self.assertContains(response, "هم‌زبان چیست")
-        self.assertContains(response, "۲۴")
-        self.assertContains(response, 'id="faq"')
-        self.assertContains(response, "زمان‌های صفحهٔ درمانگر قطعی است؟")
+        self.assertContains(response, 'src="/static/build/app.js"')
+        payload = self.client.get(reverse("api_home")).json()
+        self.assertIn("۲۴", [item["value"] for item in payload["stats"]])
+        self.assertTrue(any("زمان‌های صفحهٔ درمانگر قطعی است؟" in item["question"] for item in payload["faqs"]))
+        self.assertContains(response, "manifest.webmanifest?app=client")
+        landing = self.client.get(reverse("therapist_landing"))
+        self.assertContains(landing, "manifest.webmanifest?app=therapist")
+        self.assertContains(landing, "site-header")
+        therapist = self.client.get(reverse("api_home"), {"app": "therapist"}).json()
+        self.assertEqual([item["title"] for item in therapist["steps"]], ["ثبت‌نام", "بررسی", "ساعت‌ها", "جلسه‌ها"])
+        self.assertIn("۲ روز", [item["value"] for item in therapist["stats"]])
 
     def test_search_filters_approved_therapists_with_open_slots(self):
         make_profile(
@@ -236,17 +274,35 @@ class PublicSiteTests(TestCase):
             slug="sara-nikfar",
         )
 
-        response = self.client.get(reverse("therapist_list"), {"q": "كودك"})
+        response = self.client.get(reverse("api_therapists"), {"q": "كودك"})
+        names = [item["name"] for item in response.json()["therapists"]]
+        slugs = [item["slug"] for item in response.json()["therapists"]]
 
-        self.assertContains(response, "لیلا بهرامی")
-        self.assertNotContains(response, "سارا نیک‌فر")
-        self.assertContains(response, reverse("therapist_detail", args=["leila-bahrami"]))
+        self.assertIn("لیلا بهرامی", names)
+        self.assertNotIn("سارا نیک‌فر", names)
+        self.assertIn("leila-bahrami", slugs)
+
+    def test_persian_slug_can_be_linked_from_the_list(self):
+        profile = make_profile(
+            username="terapist",
+            display_name="تراپیست",
+            status=TherapistProfile.Status.APPROVED,
+            with_hours=True,
+            slug="تراپیست",
+        )
+        profile.photo = SimpleUploadedFile("face.png", b"\x89PNG\r\n", content_type="image/png")
+        profile.save(update_fields=["photo"])
+
+        listed = self.client.get(reverse("api_therapists")).json()["therapists"]
+        match = next(item for item in listed if item["slug"] == "تراپیست")
+
+        self.assertEqual(match["photo"], reverse("therapist_photo", args=["تراپیست"]))
+        self.assertEqual(self.client.get(reverse("therapist_detail", args=["تراپیست"])).status_code, 200)
 
     def test_unknown_search_shows_an_empty_state(self):
-        response = self.client.get(reverse("therapist_list"), {"q": "نبود"})
+        response = self.client.get(reverse("api_therapists"), {"q": "نبود"})
 
-        self.assertContains(response, "درمانگری با این جستجو پیدا نشد")
-        self.assertNotContains(response, "سارا نیک‌فر")
+        self.assertEqual(response.json()["therapists"], [])
 
     def test_therapist_page_shows_open_slots(self):
         make_profile(
@@ -257,12 +313,13 @@ class PublicSiteTests(TestCase):
             slug="sara-nikfar",
         )
 
-        response = self.client.get(reverse("therapist_detail", args=["sara-nikfar"]))
+        response = self.client.get(reverse("api_therapist_detail", args=["sara-nikfar"]))
+        payload = response.json()
+        times = [slot["time"] for day in payload["days"] for slot in day["slots"]]
 
-        self.assertContains(response, "سارا نیک‌فر")
-        self.assertContains(response, "زمان‌های آزاد")
-        self.assertContains(response, "12:00")
-        self.assertNotContains(response, "این برنامه نمونه است")
+        self.assertEqual(payload["therapist"]["name"], "سارا نیک‌فر")
+        self.assertIn("12:00", times)
+        self.assertContains(self.client.get(reverse("therapist_detail", args=["sara-nikfar"])), 'src="/static/build/app.js"')
 
     def test_unknown_therapist_is_not_found(self):
         response = self.client.get(reverse("therapist_detail", args=["missing-person"]))

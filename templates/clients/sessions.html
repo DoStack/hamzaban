@@ -1,4 +1,5 @@
 {% extends "clients/account_base.html" %}
+{% load static %}
 
 {% block title %}جلسه‌های من | هم‌زبان{% endblock %}
 
@@ -6,37 +7,13 @@
 <p class="eyebrow">تقویم</p>
 <h1>جلسه‌های من</h1>
 <p class="muted">وضعیت هر جلسه روی همان روز دیده می‌شود. زمان‌ها به وقت تهران است. برای تغییر زمان، جلسه را لغو کنید و وقت دیگری بگیرید.</p>
-<div class="calendar-head">
-    <a class="secondary-button" href="{{ calendar.prev_url }}">ماه قبل</a>
-    <strong>{{ calendar.title }}</strong>
-    <a class="secondary-button" href="{{ calendar.next_url }}">ماه بعد</a>
-</div>
-<div class="calendar" role="grid" aria-label="{{ calendar.title }}">
-    {% for name in calendar.weekdays %}
-        <div class="calendar__name" role="columnheader">{{ name }}</div>
-    {% endfor %}
-    {% for week in calendar.weeks %}
-        {% for cell in week %}
-            {% if cell %}
-                <div class="calendar__day" role="gridcell">
-                    <strong>{{ cell.day }}</strong>
-                    {% for item in cell.items %}
-                        <span class="badge badge--{{ item.status }}">{{ item.time }} {{ item.label }}</span>
-                        <small>{{ item.name }}</small>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <div class="calendar__day is-empty" role="gridcell"></div>
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
-</div>
+{% include "clients/sessions_calendar.html" %}
 
 <h2>فهرست</h2>
 {% if bookings %}
     <div class="panel-grid">
         {% for booking in bookings %}
-            <article class="record-card">
+            <article class="record-card" id="booking-{{ booking.pk }}">
                 <div class="record-card__row">
                     <strong>{{ booking.therapist.display_name }}</strong>
                     <span class="badge badge--{{ booking.status|lower }}">{{ booking.get_status_display }}</span>
@@ -60,4 +37,8 @@
 {% else %}
     <p class="empty-state">هنوز جلسه‌ای ندارید. از فهرست درمانگرها یک وقت آزاد را رزرو کنید.</p>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'js/session-calendar.js' %}" defer></script>
 {% endblock %}

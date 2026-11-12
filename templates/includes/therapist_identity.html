@@ -1,0 +1,12 @@
+<div class="profile-identity{% if bar %} profile-identity--bar{% endif %}">
+    {% if request.therapist_profile.photo %}
+        <img class="avatar" src="{% url 'therapist_photo' request.therapist_profile.slug %}" alt="">
+    {% else %}
+        {% include "includes/profile_icon.html" %}
+    {% endif %}
+    <div>
+        <strong>{{ request.therapist_profile.display_name }}</strong>
+        <span>{{ request.therapist_profile.get_status_display }}</span>
+    </div>
+    {% include "includes/theme_toggle.html" %}
+</div>

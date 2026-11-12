@@ -6,9 +6,9 @@ export default defineConfig({
     outDir: "static/build",
     emptyOutDir: false,
     rollupOptions: {
-      input: "frontend/client-profile.jsx",
+      input: "frontend/app.jsx",
       output: {
-        entryFileNames: "client-profile.js",
+        entryFileNames: "app.js",
       },
     },
   },

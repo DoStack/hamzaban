@@ -1,18 +1,19 @@
 {% extends "base.html" %}
 
+{% block body_class %}app-shell{% endblock %}
+{% block app_title %}هم‌زبان درمانگر{% endblock %}
+{% block manifest_href %}{% url 'manifest' %}?app=therapist{% endblock %}
+{% block site_chrome %}{% endblock %}
+{% block site_footer %}{% endblock %}
+
 {% block content %}
 <div class="profile-shell">
     <aside class="profile-sidebar" aria-label="ناوبری درمانگر">
-        <div class="profile-identity">
-            <span class="avatar" aria-hidden="true">{{ request.therapist_profile.display_name|first }}</span>
-            <div>
-                <strong>{{ request.therapist_profile.display_name }}</strong>
-                <span>{{ request.therapist_profile.get_status_display }}</span>
-            </div>
-        </div>
+        {% include "includes/therapist_identity.html" %}
         {% include "includes/therapist_nav.html" with nav="side" %}
     </aside>
     <section class="profile-main">
+        {% include "includes/therapist_identity.html" with bar=True %}
         {% include "includes/therapist_nav.html" with nav="links" %}
         {% block account %}{% endblock %}
     </section>

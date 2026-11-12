@@ -14,6 +14,7 @@ from django.urls import reverse
 from django.utils import timezone, translation
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from clients.views import render_spa
 from therapy.access import client_only, forbid, therapist_only
 from therapy.calendar import (
     MONTHS,
@@ -55,6 +56,7 @@ from therapy.services import (
     cancel_booking,
     complete_booking,
     ensure_daily_card,
+    record_mood,
     ensure_link,
     income_groups,
     notify,
@@ -177,6 +179,8 @@ def book(request, slug, slot_id):
                 return redirect("therapist_detail", slug=slug)
             messages.success(request, "رسید ثبت شد و درمانگر آن را می‌بیند.")
             return redirect("client_payments")
+        if request.method == "GET":
+            return render_spa(request, "site")
         return render(
             request,
             "clients/book.html",
@@ -202,86 +206,13 @@ def client_sessions(request):
             messages.success(request, "جلسه لغو شد.")
         return redirect("client_sessions")
 
-    today = timezone.localdate()
-    jy, jm, _jd = gregorian_to_jalali(today.year, today.month, today.day)
-    try:
-        jy = int(request.GET.get("year", jy))
-        jm = int(request.GET.get("month", jm))
-        if not 1 <= jm <= 12:
-            raise ValueError
-    except (TypeError, ValueError):
-        jy, jm, _jd = gregorian_to_jalali(today.year, today.month, today.day)
-    start, end = month_bounds(jy, jm)
-    zone = ZoneInfo(settings.TIME_ZONE)
-    start_dt = datetime.combine(start, time.min, tzinfo=zone)
-    end_dt = datetime.combine(end, time.min, tzinfo=zone)
-    month_bookings = Booking.objects.filter(
-        client=request.user,
-        starts_at__gte=start_dt,
-        starts_at__lt=end_dt,
-    ).select_related("therapist")
-    by_day = {}
-    for booking in month_bookings:
-        local = timezone.localtime(booking.starts_at)
-        _year, _month, day = gregorian_to_jalali(local.year, local.month, local.day)
-        by_day.setdefault(day, []).append(
-            {
-                "time": local.strftime("%H:%M"),
-                "status": booking.status.lower(),
-                "label": booking.get_status_display(),
-                "name": booking.therapist.display_name,
-            }
-        )
-    weeks = []
-    for week in month_weeks(jy, jm):
-        weeks.append(
-            [
-                None
-                if day is None
-                else {"day": day, "items": by_day.get(day, [])}
-                for day in week
-            ]
-        )
-    prev_year, prev_month = shift_month(jy, jm, -1)
-    next_year, next_month = shift_month(jy, jm, 1)
-    bookings = list(
-        Booking.objects.filter(client=request.user)
-        .select_related("therapist")
-        .order_by("-starts_at")[:40]
-    )
-    now = timezone.now()
-    for booking in bookings:
-        booking.when_date, booking.when_time = _local_pair(booking.starts_at, settings.TIME_ZONE)
-        notice = timedelta(hours=booking.therapist.min_notice_hours)
-        booking.can_cancel = booking.status in {Booking.Status.AWAITING, Booking.Status.CONFIRMED} and (
-            booking.starts_at - now >= notice
-        )
-    return render(
-        request,
-        "clients/sessions.html",
-        {
-            "section": "sessions",
-            "calendar": {
-                "title": f"{MONTHS[jm]} {jy}",
-                "weeks": weeks,
-                "weekdays": WEEKDAY_NAMES,
-                "prev_url": f"{reverse('client_sessions')}?year={prev_year}&month={prev_month}",
-                "next_url": f"{reverse('client_sessions')}?year={next_year}&month={next_month}",
-            },
-            "bookings": bookings,
-        },
-    )
+    return render_spa(request, "client")
 
 
 @client_only
 @require_GET
 def client_payments(request):
-    receipts = (
-        Receipt.objects.filter(booking__client=request.user)
-        .select_related("booking__therapist")
-        .order_by("-created_at")
-    )
-    return render(request, "clients/payments.html", {"section": "payments", "receipts": receipts})
+    return render_spa(request, "client")
 
 
 @client_only
@@ -294,18 +225,7 @@ def client_reminders(request):
         if action == "mood":
             form = MoodForm(request.POST)
             if form.is_valid():
-                MoodLog.objects.update_or_create(
-                    client=request.user,
-                    logged_on=timezone.localdate(),
-                    defaults={"emoji": form.cleaned_data["emoji"], "word": form.cleaned_data["word"]},
-                )
-                for link in request.user.care_links.select_related("therapist__user"):
-                    name = request.user.get_full_name() or request.user.get_username()
-                    notify(
-                        link.therapist.user,
-                        "حال مراجع",
-                        f"{name}: {form.cleaned_data['emoji']} {form.cleaned_data['word']}",
-                    )
+                record_mood(request.user, form.cleaned_data["emoji"], form.cleaned_data["word"])
                 messages.success(request, "حال امروز ثبت شد.")
             else:
                 messages.error(request, "حال امروز ذخیره نشد. یک حال و یک کلمه لازم است.")
@@ -319,24 +239,7 @@ def client_reminders(request):
                 messages.error(request, form.errors["telegram_username"][0])
         return redirect("client_reminders")
 
-    today = timezone.localdate()
-    tasks = request.user.tasks.order_by("due_on", "id")
-    notes = list(request.user.notifications.all()[:20])
-    request.user.notifications.filter(read_at__isnull=True).update(read_at=timezone.now())
-    mood = MoodLog.objects.filter(client=request.user, logged_on=today).first()
-    return render(
-        request,
-        "clients/reminders.html",
-        {
-            "section": "reminders",
-            "tasks": tasks,
-            "notes": notes,
-            "moods": MOODS,
-            "mood": mood,
-            "telegram": profile.telegram_username,
-            "today": today,
-        },
-    )
+    return render_spa(request, "client")
 
 
 @client_only
@@ -347,7 +250,13 @@ def complete_task(request, task_id):
         task.completed_at = timezone.now()
         task.save(update_fields=["completed_at"])
         if task.therapist_id:
-            notify(task.therapist.user, "کار انجام شد", task.title)
+            notify(
+                task.therapist.user,
+                "کار انجام شد",
+                task.title,
+                link=f"{reverse('therapist_tasks')}#task-{task.pk}",
+                event_key=f"task-{task.pk}",
+            )
         messages.success(request, task.reward or "انجام شد.")
     return redirect("client_reminders")
 
@@ -375,20 +284,22 @@ def therapist_home(request):
         booking.prep = records.get(booking.client_id)
         booking.when_date, booking.when_time = _local_pair(booking.starts_at, profile.timezone)
     tasks = profile.assigned_tasks.filter(due_on=now_local.date()).select_related("client")
-    notes = list(request.user.notifications.all()[:12])
+    return render_spa(request, "therapist")
+
+
+@therapist_only
+@require_GET
+def therapist_notifications(request):
+    notes = list(request.user.notifications.all()[:30])
     request.user.notifications.filter(read_at__isnull=True).update(read_at=timezone.now())
-    return render(
-        request,
-        "therapists/home.html",
-        {"section": "today", "profile": profile, "sessions": sessions, "tasks": tasks, "notes": notes},
-    )
+    return render_spa(request, "therapist")
 
 
 @therapist_only
 @require_GET
 def students(request):
     links = request.therapist_profile.students.select_related("client").order_by("client__first_name", "client__username")
-    return render(request, "therapists/students.html", {"section": "students", "links": links})
+    return render_spa(request, "therapist")
 
 
 @therapist_only
@@ -408,6 +319,8 @@ def add_student(request):
             ensure_link(profile, user)
         messages.success(request, "مراجع به فهرست شما اضافه شد.")
         return redirect("therapist_crm", user_id=user.pk)
+    if request.method == "GET":
+        return render_spa(request, "therapist")
     return render(request, "therapists/student_form.html", {"section": "students", "form": form})
 
 
@@ -434,19 +347,7 @@ def caseload(request):
     if selected is not None:
         quiet = [link for link in quiet if link.client_id == selected.client_id]
     logs = MoodLog.objects.filter(client_id__in=client_ids).select_related("client").order_by("-logged_on")[:40]
-    summary_rows = [{"emoji": emoji, "label": label, "count": summary.get(emoji, 0)} for emoji, label in MOODS]
-    return render(
-        request,
-        "therapists/caseload.html",
-        {
-            "section": "caseload",
-            "links": links,
-            "selected": selected,
-            "summary_rows": summary_rows,
-            "logs": logs,
-            "quiet": quiet,
-        },
-    )
+    return render_spa(request, "therapist")
 
 
 @therapist_only
@@ -454,6 +355,8 @@ def caseload(request):
 def crm(request, user_id):
     profile = request.therapist_profile
     link = get_object_or_404(profile.students.select_related("client"), client_id=user_id)
+    if request.method == "GET":
+        return render_spa(request, "therapist")
     record, _created = ClientRecord.objects.get_or_create(link=link)
     form = RecordForm(request.POST or None, instance=record)
     if request.method == "POST" and form.is_valid():
@@ -478,6 +381,8 @@ def crm(request, user_id):
 @therapist_only
 @require_http_methods(["GET", "POST"])
 def tasks(request):
+    if request.method == "GET":
+        return render_spa(request, "therapist")
     profile = request.therapist_profile
     form = TaskForm(profile, request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -490,7 +395,10 @@ def tasks(request):
             reward=form.cleaned_data["reward"],
             due_on=form.cleaned_data["due_on"],
         )
-        notify(task.client, task.title, task.body)
+        text = task.body
+        if task.reward:
+            text = f"{task.body}\nپاداش: {task.reward}"
+        notify(task.client, task.title, text, event_key=f"task-{task.pk}")
         messages.success(request, "کار برای مراجع ثبت شد.")
         return redirect("therapist_tasks")
     assigned = profile.assigned_tasks.select_related("client").order_by("-due_on", "-id")[:40]
@@ -505,12 +413,14 @@ def tasks(request):
 @require_GET
 def income(request):
     groups = income_groups(request.therapist_profile)
-    return render(request, "therapists/income.html", {"section": "income", **groups})
+    return render_spa(request, "therapist")
 
 
 @therapist_only
 @require_http_methods(["GET", "POST"])
 def profile_edit(request):
+    if request.method == "GET":
+        return render_spa(request, "therapist")
     profile = request.therapist_profile
     was = profile.status
     form = TherapistProfileForm(request.POST or None, request.FILES or None, instance=profile)
@@ -538,6 +448,8 @@ def profile_edit(request):
 @therapist_only
 @require_http_methods(["GET", "POST"])
 def hours(request):
+    if request.method == "GET":
+        return render_spa(request, "therapist")
     profile = request.therapist_profile
     form = ClosureForm()
     if request.method == "POST" and "save-hours" in request.POST:
@@ -581,6 +493,8 @@ def hours(request):
 @require_http_methods(["GET", "POST"])
 def therapist_sessions(request):
     profile = request.therapist_profile
+    if request.method == "GET":
+        return render_spa(request, "therapist")
     if request.method == "POST":
         booking = get_object_or_404(Booking, pk=request.POST.get("booking"), therapist=profile)
         action = request.POST.get("action")
@@ -632,8 +546,36 @@ def therapist_sessions(request):
 
 
 def manifest(request):
-    path = Path(settings.BASE_DIR) / "static" / "manifest.webmanifest"
-    return FileResponse(path.open("rb"), content_type="application/manifest+json")
+    from django.http import JsonResponse
+
+    app = request.GET.get("app")
+    if app == "client":
+        name, start = "هم‌زبان مراجع", "/profile/"
+    elif app == "therapist":
+        name, start = "هم‌زبان درمانگر", "/therapist/home/"
+    else:
+        name, start = "هم‌زبان", "/"
+    icons = [
+        {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    ]
+    return JsonResponse(
+        {
+            "id": start,
+            "name": name,
+            "short_name": "هم‌زبان",
+            "start_url": start,
+            "scope": "/",
+            "display": "standalone",
+            "dir": "rtl",
+            "lang": "fa",
+            "background_color": "#f5f7f8",
+            "theme_color": "#3AA58C",
+            "icons": icons,
+        },
+        json_dumps_params={"ensure_ascii": False},
+    )
 
 
 def service_worker(request):

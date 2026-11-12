@@ -1,5 +1,11 @@
-const CACHE = "hamzaban-static-v1";
-const FILES = ["/static/css/site.css", "/static/css/fonts.css", "/static/favicon.svg"];
+const CACHE = "hamzaban-static-v2";
+const FILES = [
+  "/static/css/site.css",
+  "/static/css/fonts.css",
+  "/static/favicon.svg",
+  "/static/unfold/fonts/material-symbols/styles.css",
+  "/static/unfold/fonts/material-symbols/Material-Symbols-Outlined.woff2",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));

@@ -34,15 +34,4 @@
         <p class="empty-state">برای امروز کاری نفرستاده‌اید. از بخش کارها می‌توانید تمرین یا یادآور بسازید.</p>
     {% endfor %}
 </div>
-<h2>خبر وضعیت</h2>
-<div class="panel-grid">
-    {% for note in notes %}
-        <article class="record-card">
-            <strong>{{ note.title }}</strong>
-            <p>{{ note.body }}</p>
-        </article>
-    {% empty %}
-        <p class="empty-state">خبر تازه‌ای نیست.</p>
-    {% endfor %}
-</div>
 {% endblock %}

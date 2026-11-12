@@ -1,0 +1,8 @@
+<div class="profile-identity{% if bar %} profile-identity--bar{% endif %}">
+    {% include "includes/profile_icon.html" %}
+    <div>
+        <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
+        <span>حساب مراجع</span>
+    </div>
+    {% include "includes/theme_toggle.html" %}
+</div>

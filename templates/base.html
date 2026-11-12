@@ -5,9 +5,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#3AA58C">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="{% block app_title %}هم‌زبان{% endblock %}">
     <title>{% block title %}هم‌زبان{% endblock %}</title>
     <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
-    <link rel="manifest" href="{% url 'manifest' %}">
+    <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
+    <link rel="manifest" href="{% block manifest_href %}{% url 'manifest' %}{% endblock %}">
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
     <script>
         try {
@@ -17,7 +22,8 @@
         } catch (_) {}
     </script>
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
+    {% block site_chrome %}
     <header class="site-header">
         <a class="brand" href="{% url 'home' %}" aria-label="هم‌زبان، صفحهٔ اصلی">
             <span class="brand-mark" aria-hidden="true">ه</span>
@@ -41,9 +47,10 @@
                 <a class="header-link" href="{% url 'login' %}">ورود</a>
                 <a class="header-link header-link--solid" href="{% url 'register' %}">ثبت‌نام</a>
             {% endif %}
-            <button class="theme-toggle" type="button" data-theme-toggle aria-label="تغییر پوسته">تغییر پوسته</button>
+            {% include "includes/theme_toggle.html" %}
         </div>
     </header>
+    {% endblock %}
 
     <main class="{% block main_class %}page-content{% endblock %}">
         {% if messages %}
@@ -56,6 +63,7 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% block site_footer %}
     <footer class="site-footer">
         <div>
             <strong>هم‌زبان</strong>
@@ -76,6 +84,7 @@
             {% endif %}
         </nav>
     </footer>
+    {% endblock %}
     <script src="{% static 'js/theme.js' %}" defer></script>
     {% if request.user.is_authenticated %}
         <script src="{% static 'js/logout-confirm.js' %}" defer></script>

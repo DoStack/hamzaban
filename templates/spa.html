@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}هم‌زبان{% endblock %}
+{% block body_class %}{% if spa_app != "site" %}app-shell{% endif %}{% endblock %}
+{% block app_title %}{% if spa_app == "client" %}هم‌زبان مراجع{% elif spa_app == "therapist" %}هم‌زبان درمانگر{% else %}هم‌زبان{% endif %}{% endblock %}
+{% block manifest_href %}{% url 'manifest' %}{% if manifest_app %}?app={{ manifest_app }}{% elif spa_app != "site" %}?app={{ spa_app }}{% endif %}{% endblock %}
+{% block main_class %}{% if spa_app == "site" %}landing{% else %}page-content{% endif %}{% endblock %}
+{% block site_chrome %}{% if spa_app == "site" %}{{ block.super }}{% endif %}{% endblock %}
+{% block site_footer %}{% if spa_app == "site" %}{{ block.super }}{% endif %}{% endblock %}
+
+{% block content %}
+<div id="app" data-app="{{ spa_app }}"></div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'build/app.js' %}"></script>
+{% endblock %}

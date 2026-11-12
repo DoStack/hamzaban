@@ -9,13 +9,12 @@ from django.shortcuts import redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import translation
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_http_methods
 
 from therapy.access import client_only, is_therapist
 from therapy.forms import TherapistRegistrationForm
-from therapy.services import open_slots_by_day, public_profile, search_public_therapists
-
-from .catalog import FAQS, STATS
+from therapy.services import public_profile
 from .forms import ClientRegistrationForm
 
 
@@ -51,19 +50,19 @@ def favicon(request):
     return redirect(static("favicon.svg"))
 
 
+@ensure_csrf_cookie
+def render_spa(request, spa_app="site", manifest_app=""):
+    return render(request, "spa.html", {"spa_app": spa_app, "manifest_app": manifest_app})
+
+
 @require_GET
 def home(request):
-    return render(request, "clients/home.html", {"stats": STATS, "faqs": FAQS})
+    return render_spa(request, manifest_app="client")
 
 
 @require_GET
 def therapist_list(request):
-    query = request.GET.get("q", "")
-    return render(
-        request,
-        "clients/therapist_list.html",
-        {"therapists": search_public_therapists(query), "query": query.strip()},
-    )
+    return render_spa(request, "site")
 
 
 @require_GET
@@ -71,21 +70,17 @@ def therapist_detail(request, slug):
     therapist = public_profile(slug)
     if therapist is None:
         raise Http404("درمانگر پیدا نشد.")
-    return render(
-        request,
-        "clients/therapist_detail.html",
-        {"therapist": therapist, "days": open_slots_by_day(therapist)},
-    )
+    return render_spa(request, "site")
 
 
 @client_only
 def client_profile(request):
-    return render(request, "clients/profile.html", {"section": "overview"})
+    return render_spa(request, "client")
 
 
 @require_GET
 def therapist_landing(request):
-    return render(request, "therapists/landing.html")
+    return render_spa(request, manifest_app="therapist")
 
 
 @require_http_methods(["GET", "POST"])
@@ -99,6 +94,8 @@ def register(request):
             login(request, form.save())
             return redirect("client_profile")
 
+        if request.method == "GET":
+            return render_spa(request, "site")
         return render(request, "registration/register.html", {"form": form})
 
 
@@ -116,6 +113,8 @@ def therapist_register(request):
             login(request, form.save())
             return redirect("therapist_home")
 
+        if request.method == "GET":
+            return render_spa(request, "site")
         return render(request, "therapists/register.html", {"form": form})
 
 
@@ -139,6 +138,9 @@ def data_file(request, name):
 
 class HamzabanLoginView(auth_views.LoginView):
     template_name = "registration/login.html"
+
+    def get(self, request, *args, **kwargs):
+        return render_spa(request, "site")
 
     def get_default_redirect_url(self):
         return reverse(account_home(self.request.user))

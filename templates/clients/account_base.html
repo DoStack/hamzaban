@@ -1,18 +1,19 @@
 {% extends "base.html" %}
 
+{% block body_class %}app-shell{% endblock %}
+{% block app_title %}هم‌زبان مراجع{% endblock %}
+{% block manifest_href %}{% url 'manifest' %}?app=client{% endblock %}
+{% block site_chrome %}{% endblock %}
+{% block site_footer %}{% endblock %}
+
 {% block content %}
 <div class="profile-shell">
     <aside class="profile-sidebar" aria-label="ناوبری پروفایل">
-        <div class="profile-identity">
-            <span class="avatar" aria-hidden="true">{{ request.user.get_username|first|upper }}</span>
-            <div>
-                <strong>{{ request.user.get_full_name|default:request.user.get_username }}</strong>
-                <span>حساب مراجع</span>
-            </div>
-        </div>
+        {% include "includes/client_identity.html" %}
         {% include "includes/client_nav.html" with nav="side" %}
     </aside>
     <section class="profile-main">
+        {% include "includes/client_identity.html" with bar=True %}
         {% include "includes/client_nav.html" with nav="links" %}
         {% block account %}{% endblock %}
     </section>

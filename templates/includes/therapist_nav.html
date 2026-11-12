@@ -1,28 +1,30 @@
 {% if nav == "side" %}
 <nav class="profile-menu" aria-label="بخش‌های درمانگر">
-    <a class="profile-menu__item {% if section == 'today' %}is-active{% endif %}" href="{% url 'therapist_home' %}" {% if section == 'today' %}aria-current="page"{% endif %}><span aria-hidden="true">⌂</span> امروز</a>
-    <a class="profile-menu__item {% if section == 'sessions' %}is-active{% endif %}" href="{% url 'therapist_sessions' %}" {% if section == 'sessions' %}aria-current="page"{% endif %}><span aria-hidden="true">◷</span> جلسه‌ها</a>
-    <a class="profile-menu__item {% if section == 'students' %}is-active{% endif %}" href="{% url 'therapist_students' %}" {% if section == 'students' %}aria-current="page"{% endif %}><span aria-hidden="true">☺</span> دانشجوها</a>
-    <a class="profile-menu__item {% if section == 'caseload' %}is-active{% endif %}" href="{% url 'therapist_caseload' %}" {% if section == 'caseload' %}aria-current="page"{% endif %}><span aria-hidden="true">◉</span> حال مراجعان</a>
-    <a class="profile-menu__item {% if section == 'tasks' %}is-active{% endif %}" href="{% url 'therapist_tasks' %}" {% if section == 'tasks' %}aria-current="page"{% endif %}><span aria-hidden="true">☑</span> کارها</a>
-    <a class="profile-menu__item {% if section == 'income' %}is-active{% endif %}" href="{% url 'therapist_income' %}" {% if section == 'income' %}aria-current="page"{% endif %}><span aria-hidden="true">﷼</span> درآمد</a>
-    <a class="profile-menu__item {% if section == 'hours' %}is-active{% endif %}" href="{% url 'therapist_hours' %}" {% if section == 'hours' %}aria-current="page"{% endif %}><span aria-hidden="true">▦</span> ساعت‌ها</a>
-    <a class="profile-menu__item {% if section == 'profile' %}is-active{% endif %}" href="{% url 'therapist_profile' %}" {% if section == 'profile' %}aria-current="page"{% endif %}><span aria-hidden="true">☺</span> پروفایل</a>
+    <a class="profile-menu__item {% if section == 'profile' %}is-active{% endif %}" href="{% url 'therapist_profile' %}" {% if section == 'profile' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="manage_accounts" %} حساب کاربری</a>
+    <a class="profile-menu__item {% if section == 'today' %}is-active{% endif %}" href="{% url 'therapist_home' %}" {% if section == 'today' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="dashboard" %} امروز</a>
+    <a class="profile-menu__item {% if section == 'sessions' %}is-active{% endif %}" href="{% url 'therapist_sessions' %}" {% if section == 'sessions' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="event" %} جلسه‌ها</a>
+    <a class="profile-menu__item {% if section == 'students' %}is-active{% endif %}" href="{% url 'therapist_students' %}" {% if section == 'students' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="group" %} دانشجوها</a>
+    <a class="profile-menu__item {% if section == 'caseload' %}is-active{% endif %}" href="{% url 'therapist_caseload' %}" {% if section == 'caseload' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="psychology" %} حال مراجعان</a>
+    <a class="profile-menu__item {% if section == 'tasks' %}is-active{% endif %}" href="{% url 'therapist_tasks' %}" {% if section == 'tasks' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="task_alt" %} کارها</a>
+    <a class="profile-menu__item {% if section == 'notifications' %}is-active{% endif %}" href="{% url 'therapist_notifications' %}" {% if section == 'notifications' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="notifications" %} اعلانات</a>
+    <a class="profile-menu__item {% if section == 'income' %}is-active{% endif %}" href="{% url 'therapist_income' %}" {% if section == 'income' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="payments" %} درآمد</a>
+    <a class="profile-menu__item {% if section == 'hours' %}is-active{% endif %}" href="{% url 'therapist_hours' %}" {% if section == 'hours' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="schedule" %} ساعت‌ها</a>
     {% include "includes/logout_form.html" %}
 </nav>
 {% elif nav == "mobile" %}
 <nav class="mobile-profile-nav" aria-label="ناوبری موبایل">
-    <a class="{% if section == 'today' %}is-active{% endif %}" href="{% url 'therapist_home' %}" {% if section == 'today' %}aria-current="page"{% endif %}><span aria-hidden="true">⌂</span>امروز</a>
-    <a class="{% if section == 'sessions' %}is-active{% endif %}" href="{% url 'therapist_sessions' %}" {% if section == 'sessions' %}aria-current="page"{% endif %}><span aria-hidden="true">◷</span>جلسه‌ها</a>
-    <a class="{% if section == 'students' %}is-active{% endif %}" href="{% url 'therapist_students' %}" {% if section == 'students' %}aria-current="page"{% endif %}><span aria-hidden="true">☺</span>مراجعان</a>
-    <a class="{% if section == 'tasks' %}is-active{% endif %}" href="{% url 'therapist_tasks' %}" {% if section == 'tasks' %}aria-current="page"{% endif %}><span aria-hidden="true">☑</span>کارها</a>
+    <a class="{% if section == 'today' %}is-active{% endif %}" href="{% url 'therapist_home' %}" {% if section == 'today' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="dashboard" %}امروز</a>
+    <a class="{% if section == 'sessions' %}is-active{% endif %}" href="{% url 'therapist_sessions' %}" {% if section == 'sessions' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="event" %}جلسه‌ها</a>
+    <a class="{% if section == 'students' %}is-active{% endif %}" href="{% url 'therapist_students' %}" {% if section == 'students' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="group" %}مراجعان</a>
+    <a class="{% if section == 'tasks' %}is-active{% endif %}" href="{% url 'therapist_tasks' %}" {% if section == 'tasks' %}aria-current="page"{% endif %}>{% include "includes/icon.html" with name="task_alt" %}کارها</a>
 </nav>
 {% else %}
 <nav class="section-links" aria-label="میانبرهای درمانگر">
+    <a href="{% url 'therapist_profile' %}">حساب کاربری</a>
+    <a href="{% url 'therapist_notifications' %}">اعلانات</a>
     <a href="{% url 'therapist_caseload' %}">حال مراجعان</a>
     <a href="{% url 'therapist_income' %}">درآمد</a>
     <a href="{% url 'therapist_hours' %}">ساعت‌ها</a>
-    <a href="{% url 'therapist_profile' %}">پروفایل</a>
     {% include "includes/logout_form.html" with compact=True %}
 </nav>
 {% endif %}

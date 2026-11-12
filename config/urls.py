@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView
-from django.urls import include, path
+from django.urls import include, path, register_converter
+
+from config.converters import UnicodeSlugConverter
 
 from clients.views import (
     HamzabanLoginView,
@@ -32,17 +34,20 @@ def _admin_urls_with_data():
 
 admin.site.get_urls = _admin_urls_with_data
 
+register_converter(UnicodeSlugConverter, "uslug")
+
 urlpatterns = [
     path("favicon.ico", favicon, name="favicon"),
     path("manifest.webmanifest", manifest, name="manifest"),
     path("sw.js", service_worker, name="service_worker"),
     path("", home, name="home"),
     path("therapists/", therapist_list, name="therapist_list"),
-    path("therapists/<slug:slug>/photo/", therapist_photo, name="therapist_photo"),
-    path("therapists/<slug:slug>/book/<int:slot_id>/", book, name="book_slot"),
-    path("therapists/<slug:slug>/", therapist_detail, name="therapist_detail"),
+    path("therapists/<uslug:slug>/photo/", therapist_photo, name="therapist_photo"),
+    path("therapists/<uslug:slug>/book/<int:slot_id>/", book, name="book_slot"),
+    path("therapists/<uslug:slug>/", therapist_detail, name="therapist_detail"),
     path("receipts/<int:pk>/file/", receipt_file, name="receipt_file"),
     path("licenses/<int:pk>/", license_file, name="therapist_license"),
+    path("api/", include("therapy.api_urls")),
     path("admin/", admin.site.urls),
     path("accounts/login/", HamzabanLoginView.as_view(), name="login"),
     path("accounts/logout/", LogoutView.as_view(), name="logout"),

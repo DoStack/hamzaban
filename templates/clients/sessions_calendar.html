@@ -1,0 +1,27 @@
+<div data-session-calendar>
+    <div class="calendar-head">
+        <a class="secondary-button" href="{{ calendar.prev_url }}">ماه قبل</a>
+        <strong>{{ calendar.title }}</strong>
+        <a class="secondary-button" href="{{ calendar.next_url }}">ماه بعد</a>
+    </div>
+    <div class="calendar" role="grid" aria-label="{{ calendar.title }}">
+        {% for name in calendar.weekdays %}
+            <div class="calendar__name" role="columnheader">{{ name }}</div>
+        {% endfor %}
+        {% for week in calendar.weeks %}
+            {% for cell in week %}
+                {% if cell %}
+                    <div class="calendar__day" role="gridcell">
+                        <strong>{{ cell.day }}</strong>
+                        {% for item in cell.items %}
+                            <span class="badge badge--{{ item.status }}">{{ item.time }} {{ item.label }}</span>
+                            <small>{{ item.name }}</small>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="calendar__day is-empty" role="gridcell"></div>
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    </div>
+</div>

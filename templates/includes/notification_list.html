@@ -1,0 +1,22 @@
+{% load therapy_tags %}
+<div class="panel-grid">
+    {% for note in notes %}
+        {% if note.link %}
+            <a class="record-card" href="{{ note.link }}">
+        {% else %}
+            <article class="record-card">
+        {% endif %}
+            <div class="record-card__row">
+                <strong>{{ note.title }}</strong>
+                <span class="muted">{{ note.created_at|jalali }}</span>
+            </div>
+            <p>{{ note.body|linebreaksbr }}</p>
+        {% if note.link %}
+            </a>
+        {% else %}
+            </article>
+        {% endif %}
+    {% empty %}
+        <p class="empty-state">خبری نرسیده است.</p>
+    {% endfor %}
+</div>

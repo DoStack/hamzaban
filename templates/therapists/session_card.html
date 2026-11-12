@@ -1,4 +1,4 @@
-<article class="record-card">
+<article class="record-card" id="booking-{{ booking.pk }}">
     <div class="record-card__row">
         <strong>{{ booking.client.get_full_name|default:booking.client.username }}</strong>
         <span class="badge badge--{{ booking.status|lower }}">{{ booking.get_status_display }}</span>
