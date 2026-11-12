@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -155,6 +157,15 @@ class PublicSiteTests(TestCase):
         response = self.client.get(reverse("therapist_detail", args=["missing-person"]))
 
         self.assertEqual(response.status_code, 404)
+
+
+class VercelDeploymentTests(TestCase):
+    def test_vercel_does_not_publish_a_dist_directory(self):
+        config = json.loads((settings.BASE_DIR / "vercel.json").read_text(encoding="utf-8"))
+
+        self.assertIsNone(config["framework"])
+        self.assertIsNone(config["outputDirectory"])
+        self.assertIn("npm run build", config["buildCommand"])
 
 
 class LocalAssetTests(TestCase):

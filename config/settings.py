@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -34,8 +35,14 @@ if not SECRET_KEY and not DEBUG:
 SECRET_KEY = SECRET_KEY or "dev-only-change-me"
 ALLOWED_HOSTS = csv_env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = csv_env("DJANGO_CSRF_TRUSTED_ORIGINS")
+if os.environ.get("VERCEL"):
+    ALLOWED_HOSTS.append(".vercel.app")
+    vercel_url = os.environ.get("VERCEL_URL", "")
+    if vercel_url and vercel_url not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(vercel_url)
+        CSRF_TRUSTED_ORIGINS.append(f"https://{vercel_url}")
 
-if not DEBUG:
+if not DEBUG and not os.environ.get("DATABASE_URL"):
     required_database_values = ("PGDATABASE", "PGUSER", "PGPASSWORD", "PGHOST")
     missing_database_values = [key for key in required_database_values if not os.environ.get(key)]
     if missing_database_values:
@@ -84,8 +91,29 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
+def postgres_from_url(database_url):
+    parsed = urllib.parse.urlparse(database_url)
+    database = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": parsed.path.lstrip("/"),
+        "USER": urllib.parse.unquote(parsed.username or ""),
+        "PASSWORD": urllib.parse.unquote(parsed.password or ""),
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or ""),
+    }
+    options = {
+        key: values[-1]
+        for key, values in urllib.parse.parse_qs(parsed.query).items()
+        if key in {"sslmode", "sslrootcert", "channel_binding"}
+    }
+    if options:
+        database["OPTIONS"] = options
+    return database
+
+
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
 DATABASES = {
-    "default": {
+    "default": postgres_from_url(DATABASE_URL) if DATABASE_URL else {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("PGDATABASE", "hamzaban"),
         "USER": os.environ.get("PGUSER", "postgres"),
