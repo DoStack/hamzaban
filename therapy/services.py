@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
-from therapy.calendar import MONTHS, add_business_days, format_jalali, gregorian_to_jalali
+from therapy.calendar import MONTHS, add_business_days, format_jalali, gregorian_to_jalali, grid_starts
 from therapy.choices import DAY_LABELS, SLOT_MINUTES
 from therapy.models import (
     AvailabilityClosure,
@@ -88,15 +88,19 @@ def notice_cutoff(profile, now=None):
     return now + timedelta(hours=profile.min_notice_hours)
 
 
+def shown_on_site(profile, now=None):
+    now = now or timezone.now()
+    if profile.status != TherapistProfile.Status.APPROVED:
+        return False
+    cutoff = now + timedelta(hours=profile.min_notice_hours)
+    return profile.slots.filter(status=Slot.Status.OPEN, starts_at__gte=cutoff).exists()
+
+
 def public_therapists():
-    now = timezone.now()
     ready = [
         profile.pk
         for profile in TherapistProfile.objects.filter(status=TherapistProfile.Status.APPROVED)
-        if profile.slots.filter(
-            status=Slot.Status.OPEN,
-            starts_at__gte=now + timedelta(hours=profile.min_notice_hours),
-        ).exists()
+        if shown_on_site(profile)
     ]
     return TherapistProfile.objects.filter(pk__in=ready).order_by("display_name")
 
@@ -442,7 +446,8 @@ def rebuild_slots(profile, now=None):
             closed_hours.add((closure.date, closure.start))
     gap = timedelta(minutes=profile.gap_minutes)
     step = timedelta(minutes=SLOT_MINUTES)
-    cells = list(profile.cells.all())
+    allowed_starts = set(grid_starts())
+    cells = [cell for cell in profile.cells.all() if cell.start in allowed_starts]
     start_day = timezone.localtime(now, zone).date()
     last_day = timezone.localtime(horizon, zone).date()
     new_slots = []

@@ -1,0 +1,11 @@
+{% extends "admin/change_form.html" %}
+
+{% block nav-global-side %}
+    {% if show_site_activation %}
+        <a href="{{ site_activation_url }}" class="border border-primary-700 bg-primary-600 flex items-center gap-1 h-[38px] justify-center -my-1 rounded-default px-3 text-white hover:bg-primary-600/80 dark:border-primary-500">
+            <span class="material-symbols-outlined text-white">verified</span>
+            <span>فعال‌سازی و نمایش در سایت</span>
+        </a>
+    {% endif %}
+    {{ block.super }}
+{% endblock %}

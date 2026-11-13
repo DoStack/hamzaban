@@ -454,6 +454,7 @@ class AdminTableTests(TestCase):
         self.assertContains(index, "داده‌های پایه")
         self.assertContains(index, "تنظیمات")
         self.assertContains(index, "درمانگر")
+        self.assertNotContains(index, "افزودن درمانگر")
         self.assertContains(index, "صف تأیید")
         self.assertContains(index, "لیست درمانگرها")
         self.assertContains(index, "مراجع")
@@ -609,6 +610,73 @@ class AdminTableTests(TestCase):
         self.assertContains(filtered, "1 نتیجه")
         self.assertContains(filtered, profile.display_name)
         self.assertNotContains(filtered, f">{other.display_name}</td>")
+
+    def test_therapist_wizard_activates_a_public_profile(self):
+        from therapy.services import public_therapists
+
+        admin = get_user_model().objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Safe-pass-48",
+        )
+        self.client.force_login(admin)
+        wizard = reverse("admin:therapy_therapistprofile_activate")
+        page = self.client.get(wizard)
+        self.assertContains(page, "حساب کاربری")
+        self.assertContains(page, "wizard-step--practice")
+        self.assertContains(page, "wizard-field--chips")
+        self.assertContains(page, "ساعت‌های هفتگی")
+        self.assertContains(page, "فعال‌سازی و نمایش در سایت")
+        self.assertRedirects(
+            self.client.get(reverse("admin:therapy_therapistprofile_add")),
+            wizard,
+        )
+
+        missing = registration_data(username="wizard-missing", email="wizard-missing@example.com")
+        missing["license_file"] = SimpleUploadedFile("license.pdf", b"%PDF-1.4", content_type="application/pdf")
+        rejected = self.client.post(wizard, missing)
+        self.assertEqual(rejected.status_code, 200)
+        self.assertContains(rejected, "حداقل یک ساعت هفتگی")
+        self.assertFalse(get_user_model().objects.filter(username="wizard-missing").exists())
+
+        payload = registration_data(username="wizard-therapist", email="wizard-therapist@example.com")
+        payload["cells"] = ["5-10:00"]
+        payload["license_file"] = SimpleUploadedFile("license.pdf", b"%PDF-1.4", content_type="application/pdf")
+        created = self.client.post(wizard, payload)
+        user = get_user_model().objects.get(username="wizard-therapist")
+        profile = user.therapist_profile
+        self.assertRedirects(created, reverse("admin:therapy_therapistprofile_change", args=[profile.pk]))
+        self.assertEqual(profile.status, TherapistProfile.Status.APPROVED)
+        self.assertTrue(user.groups.filter(name="therapist").exists())
+        self.assertTrue(profile.slots.filter(status="OPEN").exists())
+        self.assertIn(profile, public_therapists())
+
+        listing = self.client.get(reverse("admin:therapy_therapistprofile_changelist"))
+        self.assertContains(listing, reverse("admin:therapy_therapistprofile_activate"))
+        self.assertContains(listing, "افزودن درمانگر")
+
+        hidden = make_profile(username="hidden-therapist", display_name="درمانگر پنهان", slug="hidden-therapist")
+        change = self.client.get(reverse("admin:therapy_therapistprofile_change", args=[hidden.pk]))
+        publish = reverse("admin:therapy_therapistprofile_publish", args=[hidden.pk])
+        self.assertContains(change, publish)
+        self.assertContains(change, "فعال‌سازی و نمایش در سایت")
+        visible = make_profile(
+            username="visible-therapist",
+            display_name="درمانگر نمایان",
+            slug="visible-therapist",
+            status=TherapistProfile.Status.APPROVED,
+            with_hours=True,
+        )
+        visible_page = self.client.get(reverse("admin:therapy_therapistprofile_change", args=[visible.pk]))
+        self.assertNotContains(
+            visible_page,
+            reverse("admin:therapy_therapistprofile_publish", args=[visible.pk]),
+        )
+
+        published = self.client.post(publish, {"cells": ["5-10:00"]})
+        hidden.refresh_from_db()
+        self.assertRedirects(published, reverse("admin:therapy_therapistprofile_change", args=[hidden.pk]))
+        self.assertIn(hidden, public_therapists())
 
     def test_status_columns_render_colored_chips(self):
         from datetime import timedelta

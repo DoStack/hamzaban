@@ -131,8 +131,8 @@ def month_weeks(jy, jm):
 
 def grid_starts():
     starts = []
-    minute = 7 * 60
-    while minute <= 22 * 60 + 30:
+    minute = 9 * 60
+    while minute <= 22 * 60:
         starts.append(time(minute // 60, minute % 60))
         minute += 30
     return starts

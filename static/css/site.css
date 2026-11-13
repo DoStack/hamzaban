@@ -340,6 +340,7 @@ a.record-card:hover { border-color: var(--accent); }
 .hour-grid { display: grid; grid-template-columns: 64px repeat(7, minmax(36px, 1fr)); gap: 4px; overflow-x: auto; margin: 12px 0; }
 .hour-grid strong, .hour-grid > span { font-size: 12px; }
 .hour-grid label { display: grid; place-items: center; min-height: 28px; border-radius: 8px; background: var(--surface-soft); }
+.hour-grid .hour-grid__toggle { display: flex; flex-direction: column; align-items: center; justify-content: end; gap: 2px; min-height: 0; background: transparent; font-size: 12px; }
 .section-links { display: none; gap: 8px; margin: 0 0 16px; padding: 0; overflow: auto; list-style: none; }
 img.avatar { object-fit: cover; }
 [data-theme="dark"] .badge--booked { background: #24344a; color: #c5dcff; }

@@ -97,7 +97,7 @@ def _hour_grid(profile):
             {
                 "time": label,
                 "cells": [
-                    {"value": f"{day}-{label}", "checked": (day, start) in selected}
+                    {"value": f"{day}-{label}", "day": day, "checked": (day, start) in selected}
                     for day in DISPLAY_DAYS
                 ],
             }
@@ -481,7 +481,7 @@ def hours(request):
         {
             "section": "hours",
             "profile": profile,
-            "day_names": [DAY_LABELS[day] for day in DISPLAY_DAYS],
+            "days": [{"id": day, "name": DAY_LABELS[day]} for day in DISPLAY_DAYS],
             "rows": _hour_grid(profile),
             "form": form,
             "closures": closures,

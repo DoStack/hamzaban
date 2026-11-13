@@ -283,6 +283,7 @@ UNFOLD = {
     "STYLES": ["/static/css/admin.css"],
     "SCRIPTS": [
         "/static/js/admin-mobile-table.js",
+        "/static/js/hour-grid.js",
         "/static/js/admin-logout-confirm.js",
     ],
 }

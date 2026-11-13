@@ -1527,13 +1527,64 @@ function TherapistProfile() {
   );
 }
 
+function HourGrid({ rows, dayNames, chosen, onChange }) {
+  const values = rows.flatMap((row) => row.cells.map((cell) => cell.value));
+  const allOn = values.length > 0 && values.every((value) => chosen.has(value));
+  const someOn = values.some((value) => chosen.has(value));
+  function setMany(targets, on) {
+    const next = new Set(chosen);
+    targets.forEach((value) => (on ? next.add(value) : next.delete(value)));
+    onChange(next);
+  }
+  return (
+    <div className="hour-grid" role="group" aria-label="ساعت‌های هفتگی">
+      <label className="hour-grid__toggle">
+        <input type="checkbox" checked={allOn} ref={(node) => { if (node) node.indeterminate = someOn && !allOn; }} onChange={() => setMany(values, !allOn)} aria-label="همه ساعت‌ها" />
+        <span>همه</span>
+      </label>
+      {dayNames.map((name, index) => {
+        const dayValues = rows.map((row) => row.cells[index].value);
+        const dayOn = dayValues.every((value) => chosen.has(value));
+        const daySome = dayValues.some((value) => chosen.has(value));
+        return (
+          <label className="hour-grid__toggle" key={name}>
+            <input type="checkbox" checked={dayOn} ref={(node) => { if (node) node.indeterminate = daySome && !dayOn; }} onChange={() => setMany(dayValues, !dayOn)} aria-label={`همه ساعت‌های ${name}`} />
+            <strong>{name}</strong>
+          </label>
+        );
+      })}
+      {rows.map((row) => (
+        <span key={row.time} style={{ display: "contents" }}>
+          <span>{row.time}</span>
+          {row.cells.map((cell) => (
+            <label key={cell.value}>
+              <input type="checkbox" name="cells" value={cell.value} checked={chosen.has(cell.value)} onChange={() => {
+                const next = new Set(chosen);
+                if (next.has(cell.value)) next.delete(cell.value);
+                else next.add(cell.value);
+                onChange(next);
+              }} />
+            </label>
+          ))}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function Hours() {
   const { loading, error, data } = useFetch("/api/therapist/hours/");
+  const [chosen, setChosen] = useState(() => new Set());
+  useEffect(() => {
+    if (!data?.rows) return;
+    const next = new Set();
+    data.rows.forEach((row) => row.cells.forEach((cell) => { if (cell.checked) next.add(cell.value); }));
+    setChosen(next);
+  }, [data]);
   async function save(event) {
     event.preventDefault();
-    const cells = [...new FormData(event.currentTarget).getAll("cells")];
     try {
-      const result = await api("/api/therapist/hours/", { method: "POST", body: { "save-hours": "1", cells } });
+      const result = await api("/api/therapist/hours/", { method: "POST", body: { "save-hours": "1", cells: [...chosen] } });
       toast(result.message);
       go("/therapist/hours/");
     } catch (err) {
@@ -1563,24 +1614,13 @@ function Hours() {
   return (
     <TherapistShell section="hours">
       <h1>ساعت‌های من</h1>
-      <p className="muted">شبکه از ۷ تا ۲۲:۳۰ با گام ۳۰ دقیقه است.</p>
+      <p className="muted">شبکه از ۹ تا ۲۲ با گام ۳۰ دقیقه است.</p>
       <Alert>{error}</Alert>
       {loading && !data ? <HoursSkeleton /> : null}
       {data ? <p>وقت آزاد الان: {data.open_count}</p> : null}
       {data ? (
         <form onSubmit={save}>
-          <div className="hour-grid">
-            <span />
-            {data.day_names.map((name) => <strong key={name}>{name}</strong>)}
-            {data.rows.map((row) => (
-              <span key={row.time} style={{ display: "contents" }}>
-                <span>{row.time}</span>
-                {row.cells.map((cell) => (
-                  <label key={cell.value}><input type="checkbox" name="cells" value={cell.value} defaultChecked={cell.checked} /></label>
-                ))}
-              </span>
-            ))}
-          </div>
+          <HourGrid rows={data.rows} dayNames={data.day_names} chosen={chosen} onChange={setChosen} />
           <button className="primary-button" type="submit">ذخیرهٔ ساعت‌ها</button>
         </form>
       ) : null}

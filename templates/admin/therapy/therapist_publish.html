@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form class="wizard" method="post">
+    {% csrf_token %}
+    <section class="wizard-step">
+        <h2>{{ profile.display_name }}</h2>
+        <p>این درمانگر هنوز در سایت دیده نمی‌شود. ساعت‌های هفتگی را انتخاب کنید و فعال‌سازی را بزنید.</p>
+        {% if error %}<ul class="wizard-errors"><li>{{ error }}</li></ul>{% endif %}
+        <div class="wizard-hours" data-hour-grid>
+            <table>
+                <thead>
+                    <tr>
+                        <th><label><input type="checkbox" data-hour-all> همه</label></th>
+                        {% for day in days %}<th><label><input type="checkbox" data-hour-day="{{ day.id }}"> {{ day.name }}</label></th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in hour_rows %}
+                        <tr>
+                            <th>{{ row.time }}</th>
+                            {% for cell in row.cells %}
+                                <td><input type="checkbox" name="cells" data-day="{{ cell.day }}" value="{{ cell.value }}" {% if cell.checked %}checked{% endif %} aria-label="{{ row.time }}"></td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <button class="wizard-submit" type="submit">فعال‌سازی و نمایش در سایت</button>
+    </section>
+</form>
+{% endblock %}

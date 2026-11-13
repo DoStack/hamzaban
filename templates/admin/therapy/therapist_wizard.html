@@ -1,0 +1,112 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form id="therapist-wizard" class="wizard" method="post" enctype="multipart/form-data" data-open-step="{{ error_step }}">
+    {% csrf_token %}
+    <ol class="wizard-nav">
+        {% for title, fields in steps %}
+            <li><button type="button" data-goto="{{ forloop.counter0 }}">{{ forloop.counter }}. {{ title }}</button></li>
+        {% endfor %}
+    </ol>
+
+    {% if form.non_field_errors %}
+        <ul class="wizard-errors">
+            {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+
+    {% for title, fields in steps %}
+        <section class="wizard-step{% if title == 'کار درمانی' %} wizard-step--practice{% endif %}" data-step="{{ forloop.counter0 }}" {% if title == "ساعت‌های هفتگی" %}data-require="cells"{% endif %} {% if forloop.counter0 != error_step %}hidden{% endif %}>
+            <h2>{{ title }}</h2>
+            {% if title == "فعال‌سازی" %}
+                <p>با ثبت این مرحله، درمانگر تأیید می‌شود، وقت‌های آزاد از ساعت‌های هفتگی ساخته می‌شوند و در فهرست سایت دیده می‌شود.</p>
+                <button class="wizard-submit" type="submit">فعال‌سازی و نمایش در سایت</button>
+            {% elif title == "ساعت‌های هفتگی" %}
+                <p>حداقل یک خانه را انتخاب کنید. بدون وقت آزاد، درمانگر در سایت نمایش داده نمی‌شود.</p>
+                <div class="wizard-hours" data-hour-grid>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><label><input type="checkbox" data-hour-all> همه</label></th>
+                                {% for day in days %}<th><label><input type="checkbox" data-hour-day="{{ day.id }}"> {{ day.name }}</label></th>{% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in hour_rows %}
+                                <tr>
+                                    <th>{{ row.time }}</th>
+                                    {% for cell in row.cells %}
+                                        <td><input type="checkbox" name="cells" data-day="{{ cell.day }}" value="{{ cell.value }}" {% if cell.checked %}checked{% endif %} aria-label="{{ row.time }}"></td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                {% for field in fields %}
+                    <div class="wizard-field{% if field.name == 'specialties' or field.name == 'education' %} wizard-field--chips{% endif %}{% if field.errors %} wizard-field--error{% endif %}">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {{ field.errors }}
+                        {% if field.help_text %}<p class="wizard-help">{{ field.help_text }}</p>{% endif %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            <div class="wizard-actions">
+                <button type="button" data-wizard="back">قبلی</button>
+                {% if title != "فعال‌سازی" %}<button type="button" data-wizard="next">بعدی</button>{% endif %}
+            </div>
+        </section>
+    {% endfor %}
+</form>
+<script>
+    const form = document.getElementById("therapist-wizard");
+    const steps = [...form.querySelectorAll(".wizard-step")];
+    const tabs = [...form.querySelectorAll("[data-goto]")];
+    let current = Number(form.dataset.openStep || 0);
+
+    function show(index) {
+        current = index;
+        steps.forEach((step, stepIndex) => {
+            step.hidden = stepIndex !== index;
+        });
+        tabs.forEach((tab, tabIndex) => {
+            tab.setAttribute("aria-current", tabIndex === index ? "step" : "false");
+        });
+    }
+
+    function stepReady(step) {
+        if (step.dataset.require === "cells") {
+            return step.querySelectorAll('input[name="cells"]:checked').length > 0;
+        }
+        const missing = [...step.querySelectorAll("input, select, textarea")].filter((field) => {
+            if (field.type === "checkbox" || field.type === "hidden" || field.disabled) return false;
+            return field.required && !field.value.trim();
+        });
+        const groups = [...step.querySelectorAll("ul, .choice-grid")].filter((list) => list.querySelector('input[type="checkbox"]'));
+        const emptyGroup = groups.some((list) => list.querySelector('input[type="checkbox"][required]') && !list.querySelector("input:checked"));
+        return missing.length === 0 && !emptyGroup;
+    }
+
+    form.addEventListener("click", (event) => {
+        const next = event.target.closest("[data-wizard='next']");
+        const back = event.target.closest("[data-wizard='back']");
+        const tab = event.target.closest("[data-goto]");
+        if (next) {
+            if (!stepReady(steps[current])) {
+                steps[current].querySelector(".wizard-step-note")?.remove();
+                const note = document.createElement("p");
+                note.className = "wizard-step-note";
+                note.textContent = "این مرحله را کامل کنید.";
+                steps[current].querySelector("h2").after(note);
+                return;
+            }
+            show(Math.min(current + 1, steps.length - 1));
+        }
+        if (back) show(Math.max(current - 1, 0));
+        if (tab) show(Number(tab.dataset.goto));
+    });
+    show(current);
+</script>
+{% endblock %}

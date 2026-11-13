@@ -148,6 +148,42 @@ class TherapistRegistrationForm(SpecialtyMixin, ClientRegistrationForm):
         return user
 
 
+def chosen_week_cells(values):
+    allowed = {item.strftime("%H:%M"): item for item in grid_starts()}
+    chosen = set()
+    for value in values:
+        day_text, _, time_text = str(value).partition("-")
+        start = allowed.get(time_text)
+        if start and day_text.isdigit() and int(day_text) in range(7):
+            chosen.add((int(day_text), start))
+    return chosen
+
+
+class AdminTherapistWizardForm(TherapistRegistrationForm):
+    """Create an approved therapist and the weekly hours that make the profile public."""
+
+    def clean(self):
+        cleaned = super().clean()
+        chosen = chosen_week_cells(self.data.getlist("cells"))
+        if not chosen:
+            self.add_error(None, "برای نمایش در سایت، حداقل یک ساعت هفتگی لازم است.")
+        cleaned["cells"] = chosen
+        return cleaned
+
+    def save(self, commit=True):
+        from therapy.services import replace_cells
+
+        user = super().save(commit=commit)
+        if not commit:
+            return user
+        profile = user.therapist_profile
+        profile.status = TherapistProfile.Status.APPROVED
+        profile.save()
+        replace_cells(profile, self.cleaned_data["cells"])
+        self.profile = profile
+        return user
+
+
 class TherapistProfileForm(SpecialtyMixin, forms.ModelForm):
     languages = forms.MultipleChoiceField(
         label="زبان‌ها",

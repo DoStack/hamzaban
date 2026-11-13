@@ -103,3 +103,103 @@ body * {
         color: #b3c5c0;
     }
 }
+
+.wizard { display: grid; gap: 16px; max-width: 980px; }
+.wizard-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.wizard-nav button,
+.wizard-actions button,
+.wizard-submit {
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #d9dfe7;
+    border-radius: 10px;
+    background: #fff;
+    color: #252b32;
+    cursor: pointer;
+}
+.wizard-nav button[aria-current="step"],
+.wizard-submit { background: #3aa58c; border-color: #3aa58c; color: #fff; }
+.wizard-step { display: grid; gap: 12px; padding: 16px; border: 1px solid #d9dfe7; border-radius: 16px; background: #fff; }
+.wizard-step h2 { margin: 0; font-size: 20px; }
+.wizard-field { display: grid; gap: 6px; }
+.wizard-field input:not([type="checkbox"]),
+.wizard-field select,
+.wizard-field textarea { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid #d9dfe7; border-radius: 10px; background: #fff; color: #252b32; }
+.wizard-field ul { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.wizard-field li label { display: inline-flex; align-items: center; gap: 6px; }
+.wizard-step--practice { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.wizard-step--practice > :not(.wizard-field--chips) { grid-column: 1 / -1; }
+.wizard-field--chips { grid-template-columns: auto 1fr; align-items: baseline; column-gap: 8px; }
+.wizard-field--chips > label,
+.wizard-field--chips > .wizard-help { min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.wizard-field--chips > label { font-size: 13px; font-weight: 500; }
+.wizard-field--chips > .choice-grid,
+.wizard-field--chips > .errorlist { grid-column: 1 / -1; }
+.wizard-field--chips .choice-grid { display: flex; flex-flow: row wrap; gap: 6px; margin: 0; padding: 0; }
+.wizard-field--chips .choice-grid > div { width: auto; margin: 0; }
+.wizard-field--chips .choice-grid label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 4px 12px;
+    border: 1px solid #d9dfe7;
+    border-radius: 999px;
+    background: #f4f7f6;
+    color: #252b32;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 400;
+}
+.wizard-field--chips .choice-grid input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+.wizard-field--chips .choice-grid label:has(input:checked) { background: #3aa58c; border-color: #2f8b75; color: #fff; }
+.wizard-field--chips .choice-grid label:focus-within { outline: 2px solid #3aa58c; outline-offset: 2px; }
+@media (max-width: 720px) {
+    .wizard-step--practice { grid-template-columns: 1fr; }
+}
+.wizard-help, .wizard-step-note { margin: 0; color: #5d6c7e; font-size: 13px; }
+.wizard-errors, .wizard-field .errorlist { margin: 0; padding: 8px 10px; border-radius: 10px; background: #fff0ee; color: #9e3025; list-style: none; }
+.wizard-actions { display: flex; gap: 8px; }
+.wizard-hours { max-height: 420px; overflow: auto; }
+.wizard-hours table { width: 100%; border-collapse: collapse; }
+.wizard-hours th, .wizard-hours td { padding: 4px; text-align: center; font-size: 12px; }
+html.dark .wizard-step,
+html.dark .wizard-nav button,
+html.dark .wizard-actions button,
+html.dark .wizard-field input,
+html.dark .wizard-field select,
+html.dark .wizard-field textarea,
+html.scheme-dark .wizard-step,
+html.scheme-dark .wizard-nav button,
+html.scheme-dark .wizard-actions button,
+html.scheme-dark .wizard-field input,
+html.scheme-dark .wizard-field select,
+html.scheme-dark .wizard-field textarea {
+    background: #1c2d30;
+    border-color: #3a5051;
+    color: #f0f6f4;
+}
+html.dark .wizard-field--chips > label,
+html.dark .wizard-field--chips > .wizard-help,
+html.scheme-dark .wizard-field--chips > label,
+html.scheme-dark .wizard-field--chips > .wizard-help { background: transparent; border: 0; color: #f0f6f4; }
+html.dark .wizard-field--chips .choice-grid label,
+html.scheme-dark .wizard-field--chips .choice-grid label { background: #1c2d30; border-color: #3a5051; color: #f0f6f4; }
+html.dark .wizard-field--chips .choice-grid label:has(input:checked),
+html.scheme-dark .wizard-field--chips .choice-grid label:has(input:checked) { background: #3aa58c; border-color: #3aa58c; color: #fff; }
+html.dark .wizard-help,
+html.scheme-dark .wizard-help { color: #b3c5c0; }
+html.dark .wizard-errors,
+html.dark .wizard-field .errorlist,
+html.scheme-dark .wizard-errors,
+html.scheme-dark .wizard-field .errorlist { background: #472d2c; color: #ffd2cc; }

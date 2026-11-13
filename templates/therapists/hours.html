@@ -1,11 +1,12 @@
 {% extends "therapists/panel_base.html" %}
+{% load static %}
 
 {% block title %}ساعت‌های من | هم‌زبان{% endblock %}
 
 {% block account %}
 <p class="eyebrow">تقویم کاری</p>
 <h1>ساعت‌های من</h1>
-<p class="muted">شبکه از ۷ تا ۲۲:۳۰ با گام ۳۰ دقیقه است. فاصلهٔ بین جلسه‌ها ۱۰ دقیقه، حداقل اطلاع قبلی ۱۲ ساعت، و افق باز ۳۰ روز است. با هر ذخیره، وقت‌های ۳۰ روز آینده دوباره ساخته می‌شوند.</p>
+<p class="muted">شبکه از ۹ تا ۲۲ با گام ۳۰ دقیقه است. فاصلهٔ بین جلسه‌ها ۱۰ دقیقه، حداقل اطلاع قبلی ۱۲ ساعت، و افق باز ۳۰ روز است. با هر ذخیره، وقت‌های ۳۰ روز آینده دوباره ساخته می‌شوند.</p>
 <p>وقت آزاد الان: {{ open_count }}</p>
 {% if profile.status != "APPROVED" %}
     <p class="form-note">تا وقتی تأیید نشده باشید، این وقت‌ها در فهرست عمومی دیده نمی‌شوند.</p>
@@ -14,14 +15,22 @@
 {% endif %}
 <form method="post">
     {% csrf_token %}
-    <div class="hour-grid" role="group" aria-label="ساعت‌های هفتگی">
-        <span></span>
-        {% for name in day_names %}<strong>{{ name }}</strong>{% endfor %}
+    <div class="hour-grid" data-hour-grid role="group" aria-label="ساعت‌های هفتگی">
+        <label class="hour-grid__toggle">
+            <input type="checkbox" data-hour-all>
+            <span>همه</span>
+        </label>
+        {% for day in days %}
+            <label class="hour-grid__toggle">
+                <input type="checkbox" data-hour-day="{{ day.id }}" aria-label="همه ساعت‌های {{ day.name }}">
+                <strong>{{ day.name }}</strong>
+            </label>
+        {% endfor %}
         {% for row in rows %}
             <span>{{ row.time }}</span>
             {% for cell in row.cells %}
                 <label>
-                    <input type="checkbox" name="cells" value="{{ cell.value }}" {% if cell.checked %}checked{% endif %}>
+                    <input type="checkbox" name="cells" data-day="{{ cell.day }}" value="{{ cell.value }}" {% if cell.checked %}checked{% endif %}>
                     <span class="visually-hidden">{{ row.time }}</span>
                 </label>
             {% endfor %}
@@ -55,4 +64,8 @@
         <li><span>استثنایی ثبت نشده است.</span></li>
     {% endfor %}
 </ul>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/hour-grid.js' %}" defer></script>
 {% endblock %}

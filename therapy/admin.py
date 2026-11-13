@@ -1,6 +1,9 @@
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.db.models import Count
-from django.urls import reverse
+from django.shortcuts import redirect, render
+from django.urls import path, reverse
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 from unfold.decorators import display
@@ -20,7 +23,19 @@ from therapy.models import (
     TherapistProfile,
     TherapistReviewQueue,
 )
-from therapy.services import review_deadline, review_is_late
+from therapy.calendar import grid_starts
+from therapy.choices import DAY_LABELS, DISPLAY_DAYS
+from therapy.forms import AdminTherapistWizardForm, chosen_week_cells
+from therapy.services import replace_cells, review_deadline, review_is_late, shown_on_site
+
+WIZARD_STEPS = (
+    ("حساب کاربری", ("first_name", "username", "email", "password1", "password2")),
+    ("پروفایل", ("display_name", "photo", "gender", "languages", "years_experience", "phone")),
+    ("مجوز", ("license_type", "license_number", "license_country", "license_file")),
+    ("کار درمانی", ("specialties", "education", "approach", "introduction", "currency", "session_price", "timezone")),
+    ("ساعت‌های هفتگی", ()),
+    ("فعال‌سازی", ()),
+)
 
 # Waiting is amber, active is green, booked is blue, finished is gray, and blocked is red.
 STATUS_CHIPS = {
@@ -53,6 +68,22 @@ def choice_chip(obj, field="status"):
     return value, label
 
 
+def hour_rows(selected):
+    rows = []
+    for start in grid_starts():
+        label = start.strftime("%H:%M")
+        rows.append(
+            {
+                "time": label,
+                "cells": [
+                    {"value": f"{day}-{label}", "day": day, "checked": f"{day}-{label}" in selected}
+                    for day in DISPLAY_DAYS
+                ],
+            }
+        )
+    return rows
+
+
 def count_link(count, url_name, lookup, value):
     url = f"{reverse(url_name)}?{lookup}={value}"
     return format_html('<a href="{}">{}</a>', url, count)
@@ -81,6 +112,101 @@ class TherapistProfileAdmin(ModelAdmin):
     search_fields = ("display_name", "license_number", "user__username", "user__email")
     readonly_fields = ("reviewed_at", "created_at", "review_state", "license_link")
     actions = ("approve_selected", "suspend_selected")
+    change_list_template = "admin/therapy/therapistprofile/change_list.html"
+    change_form_template = "admin/therapy/therapistprofile/change_form.html"
+
+    def get_urls(self):
+        info = self.model._meta.app_label, self.model._meta.model_name
+        return [
+            path(
+                "activate/",
+                self.admin_site.admin_view(self.activate_view),
+                name="%s_%s_activate" % info,
+            ),
+            path(
+                "<path:object_id>/publish/",
+                self.admin_site.admin_view(self.publish_view),
+                name="%s_%s_publish" % info,
+            ),
+        ] + super().get_urls()
+
+    def add_view(self, request, form_url="", extra_context=None):
+        return redirect("admin:therapy_therapistprofile_activate")
+
+    def activate_view(self, request):
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+        form = AdminTherapistWizardForm(request.POST or None, request.FILES or None)
+        if request.method == "POST" and form.is_valid():
+            form.save()
+            profile = form.profile
+            self.message_user(
+                request,
+                f"«{profile.display_name}» فعال شد و در سایت دیده می‌شود: /therapists/{profile.slug}/",
+            )
+            return redirect("admin:therapy_therapistprofile_change", profile.pk)
+        selected = set(request.POST.getlist("cells"))
+        error_step = 0
+        if form.errors:
+            for index, (_title, names) in enumerate(WIZARD_STEPS):
+                if any(name in form.errors for name in names):
+                    error_step = index
+                    break
+            else:
+                error_step = 4
+        context = {
+            **self.admin_site.each_context(request),
+            "form": form,
+            "steps": [(title, [form[name] for name in names]) for title, names in WIZARD_STEPS],
+            "hour_rows": hour_rows(selected),
+            "days": [{"id": day, "name": DAY_LABELS[day]} for day in DISPLAY_DAYS],
+            "error_step": error_step,
+            "title": "افزودن درمانگر",
+            "opts": self.model._meta,
+        }
+        return render(request, "admin/therapy/therapist_wizard.html", context)
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        if object_id and self.model is TherapistProfile:
+            profile = self.get_object(request, object_id)
+            if profile is not None and not shown_on_site(profile):
+                extra_context["show_site_activation"] = True
+                extra_context["site_activation_url"] = reverse(
+                    "admin:therapy_therapistprofile_publish",
+                    args=[profile.pk],
+                )
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def publish_view(self, request, object_id):
+        profile = self.get_object(request, object_id)
+        if profile is None:
+            raise Http404
+        if not self.has_change_permission(request, profile):
+            raise PermissionDenied
+        error = ""
+        selected = {f"{cell.weekday}-{cell.start.strftime('%H:%M')}" for cell in profile.cells.all()}
+        if request.method == "POST":
+            selected = set(request.POST.getlist("cells"))
+            chosen = chosen_week_cells(selected)
+            if not chosen:
+                error = "برای نمایش در سایت، حداقل یک ساعت هفتگی لازم است."
+            else:
+                profile.status = TherapistProfile.Status.APPROVED
+                profile.save()
+                replace_cells(profile, chosen)
+                self.message_user(request, f"«{profile.display_name}» فعال شد و در سایت دیده می‌شود.")
+                return redirect("admin:therapy_therapistprofile_change", profile.pk)
+        context = {
+            **self.admin_site.each_context(request),
+            "profile": profile,
+            "error": error,
+            "hour_rows": hour_rows(selected),
+            "days": [{"id": day, "name": DAY_LABELS[day]} for day in DISPLAY_DAYS],
+            "title": "فعال‌سازی و نمایش در سایت",
+            "opts": self.model._meta,
+        }
+        return render(request, "admin/therapy/therapist_publish.html", context)
     fieldsets = (
         ("بررسی", {"fields": ("user", "display_name", "slug", "status", "rejection_code", "review_state", "reviewed_at", "created_at")}),
         ("پروفایل", {"fields": ("photo", "gender", "languages", "years_experience", "phone", "approach", "specialties", "education", "introduction")}),
@@ -174,6 +300,8 @@ class TherapistProfileAdmin(ModelAdmin):
 @admin.register(TherapistReviewQueue)
 class TherapistReviewQueueAdmin(TherapistProfileAdmin):
     list_filter = ()
+    change_list_template = None
+    change_form_template = None
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(status=TherapistProfile.Status.PENDING)
