@@ -638,3 +638,23 @@ class BookingGuardTests(TestCase):
             with self.assertRaises(IntegrityError):
                 form.save()
         self.assertFalse(get_user_model().objects.filter(username="fresh").exists())
+
+
+class DatabaseStorageTests(TestCase):
+    def test_license_upload_is_saved_without_a_folder(self):
+        from django.core.files.base import ContentFile
+
+        from therapy.storage import DatabaseStorage
+
+        profile = make_profile()
+        field = TherapistProfile._meta.get_field("license_file")
+        original = field.storage
+        storage = DatabaseStorage()
+        field.storage = storage
+        profile.__dict__.pop("license_file", None)
+        try:
+            profile.license_file.save("new.pdf", ContentFile(b"%PDF-new"), save=True)
+            self.assertEqual(profile.license_file.read(), b"%PDF-new")
+            self.assertTrue(storage.exists(profile.license_file.name))
+        finally:
+            field.storage = original

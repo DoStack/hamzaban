@@ -363,3 +363,15 @@ class Notification(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class StoredFile(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    content = models.BinaryField()
+
+    class Meta:
+        verbose_name = "فایل ذخیره‌شده"
+        verbose_name_plural = "فایل‌های ذخیره‌شده"
+
+    def __str__(self):
+        return self.name

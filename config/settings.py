@@ -26,7 +26,14 @@ def csv_env(name, default=""):
     return [value.strip() for value in os.environ.get(name, default).split(",") if value.strip()]
 
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+def debug_enabled(environ=os.environ):
+    """Vercel stays off unless DJANGO_DEBUG is set to 1."""
+    on_vercel = bool(environ.get("VERCEL") or environ.get("VERCEL_ENV"))
+    default = "0" if on_vercel else "1"
+    return environ.get("DJANGO_DEBUG", default) == "1"
+
+
+DEBUG = debug_enabled()
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
 if not SECRET_KEY and not DEBUG:
     raise ImproperlyConfigured("Set DJANGO_SECRET_KEY when DEBUG is disabled.")
@@ -139,6 +146,11 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+if os.environ.get("VERCEL"):
+    STORAGES = {
+        "default": {"BACKEND": "therapy.storage.DatabaseStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
@@ -180,24 +192,27 @@ UNFOLD = {
     },
     "SIDEBAR": {
         "show_search": True,
-        "show_all_applications": True,
+        "show_all_applications": False,
         "navigation": [
             {
-                "title": "مدیریت",
+                "title": "داده‌های پایه",
                 "separator": True,
                 "collapsible": False,
                 "items": [
                     {"title": "داشبورد", "icon": "dashboard", "link": "/admin/"},
-                    {
-                        "title": "کاربران",
-                        "icon": "group",
-                        "link": "/admin/auth/user/",
-                    },
-                    {
-                        "title": "گروه‌ها",
-                        "icon": "admin_panel_settings",
-                        "link": "/admin/auth/group/",
-                    },
+                    {"title": "کاربران", "icon": "group", "link": "/admin/auth/user/"},
+                    {"title": "رزروها", "icon": "event", "link": "/admin/therapy/booking/"},
+                    {"title": "رسیدها", "icon": "receipt_long", "link": "/admin/therapy/receipt/"},
+                    {"title": "اعلان‌ها", "icon": "notifications", "link": "/admin/therapy/notification/"},
+                    {"title": "سندها", "icon": "description", "link": "/admin/data/"},
+                ],
+            },
+            {
+                "title": "تنظیمات",
+                "separator": True,
+                "collapsible": False,
+                "items": [
+                    {"title": "گروه‌ها", "icon": "admin_panel_settings", "link": "/admin/auth/group/"},
                     {"title": "اجازه‌ها", "icon": "key", "link": "/admin/auth/permission/"},
                     {"title": "نوع‌های محتوا", "icon": "category", "link": "/admin/contenttypes/contenttype/"},
                     {"title": "نشست‌ها", "icon": "schedule", "link": "/admin/sessions/session/"},
@@ -208,30 +223,26 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "هم‌زبان",
+                "title": "درمانگر",
                 "separator": True,
                 "collapsible": False,
                 "items": [
-                    {"title": "صف تأیید درمانگر", "icon": "verified", "link": "/admin/therapy/therapistprofile/"},
-                    {"title": "ساعت‌های هفتگی", "icon": "schedule", "link": "/admin/therapy/availabilitycell/"},
+                    {"title": "صف تأیید", "icon": "verified", "link": "/admin/therapy/therapistprofile/"},
+                    {"title": "ساعت‌های هفتگی", "icon": "calendar_month", "link": "/admin/therapy/availabilitycell/"},
                     {"title": "استثناهای ساعت", "icon": "event_busy", "link": "/admin/therapy/availabilityclosure/"},
-                    {"title": "وقت‌ها", "icon": "calendar_month", "link": "/admin/therapy/slot/"},
-                    {"title": "رزروها", "icon": "event", "link": "/admin/therapy/booking/"},
-                    {"title": "رسیدها", "icon": "receipt_long", "link": "/admin/therapy/receipt/"},
-                    {"title": "مراجعان درمانگرها", "icon": "group", "link": "/admin/therapy/clientlink/"},
-                    {"title": "پرونده‌ها", "icon": "folder", "link": "/admin/therapy/clientrecord/"},
-                    {"title": "پروفایل مراجعان", "icon": "person", "link": "/admin/therapy/clientprofile/"},
-                    {"title": "حال روزها", "icon": "mood", "link": "/admin/therapy/moodlog/"},
-                    {"title": "کارها", "icon": "task_alt", "link": "/admin/therapy/task/"},
-                    {"title": "اعلان‌ها", "icon": "notifications", "link": "/admin/therapy/notification/"},
+                    {"title": "وقت‌ها", "icon": "schedule", "link": "/admin/therapy/slot/"},
+                    {"title": "مراجعان", "icon": "group", "link": "/admin/therapy/clientlink/"},
                 ],
             },
             {
-                "title": "data",
+                "title": "مراجع",
                 "separator": True,
                 "collapsible": False,
                 "items": [
-                    {"title": "data", "icon": "description", "link": "/admin/data/"},
+                    {"title": "پروفایل‌ها", "icon": "person", "link": "/admin/therapy/clientprofile/"},
+                    {"title": "پرونده‌ها", "icon": "folder", "link": "/admin/therapy/clientrecord/"},
+                    {"title": "حال روزها", "icon": "mood", "link": "/admin/therapy/moodlog/"},
+                    {"title": "کارها", "icon": "task_alt", "link": "/admin/therapy/task/"},
                 ],
             },
         ],

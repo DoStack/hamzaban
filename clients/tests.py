@@ -432,10 +432,11 @@ class AdminTableTests(TestCase):
 
         index = self.client.get(reverse("admin:index"))
         self.assertContains(index, "اجازه‌ها")
-        self.assertContains(index, "نشست‌ها")
-        self.assertContains(index, "اعلان‌ها")
-        self.assertContains(index, "پرونده‌ها")
-        self.assertTrue(settings.UNFOLD["SIDEBAR"]["show_all_applications"])
+        self.assertContains(index, "داده‌های پایه")
+        self.assertContains(index, "تنظیمات")
+        self.assertContains(index, "درمانگر")
+        self.assertContains(index, "مراجع")
+        self.assertFalse(settings.UNFOLD["SIDEBAR"]["show_all_applications"])
 
 
 class VercelDeploymentTests(TestCase):
@@ -488,6 +489,15 @@ class VercelDeploymentTests(TestCase):
         )
 
         self.assertEqual(selected, "postgres://direct.example/hamzaban")
+
+    def test_production_debug_defaults_off(self):
+        from config.settings import debug_enabled
+
+        self.assertFalse(debug_enabled({"VERCEL_ENV": "production"}))
+        self.assertFalse(debug_enabled({"VERCEL": "1"}))
+        self.assertTrue(debug_enabled({"VERCEL_ENV": "production", "DJANGO_DEBUG": "1"}))
+        self.assertFalse(debug_enabled({"DJANGO_DEBUG": "0"}))
+        self.assertTrue(debug_enabled({}))
 
 
 class LocalAssetTests(TestCase):
