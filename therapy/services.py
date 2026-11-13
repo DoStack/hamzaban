@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
 
-from therapy.calendar import add_business_days, format_jalali, gregorian_to_jalali
+from therapy.calendar import MONTHS, add_business_days, format_jalali, gregorian_to_jalali
 from therapy.choices import DAY_LABELS, SLOT_MINUTES
 from therapy.models import (
     AvailabilityClosure,
@@ -115,6 +115,7 @@ def search_public_therapists(query):
                     profile.get_approach_display(),
                     profile.introduction,
                     " ".join(profile.specialties or []),
+                    " ".join(profile.education or []),
                     " ".join(profile.languages or []),
                 ]
             )
@@ -150,13 +151,46 @@ def open_slots_by_day(profile):
     return days
 
 
+def booking_weeks(profile):
+    """Weeks of bookable days, Saturday through Friday, in the therapist's zone."""
+    zone = ZoneInfo(profile.timezone)
+    today = timezone.localtime(timezone.now(), zone).date()
+    horizon_end = today + timedelta(days=profile.horizon_days)
+    week_start = today - timedelta(days=(today.weekday() - 5) % 7)
+    grouped = {}
+    slots = profile.slots.filter(status=Slot.Status.OPEN, starts_at__gte=notice_cutoff(profile)).order_by("starts_at")
+    for slot in slots:
+        local = timezone.localtime(slot.starts_at, zone)
+        grouped.setdefault(local.date(), []).append({"id": slot.pk, "time": local.strftime("%H:%M")})
+    weeks = []
+    cursor = week_start
+    while cursor <= horizon_end:
+        days = []
+        for offset in range(7):
+            day = cursor + timedelta(days=offset)
+            _year, month, number = gregorian_to_jalali(day.year, day.month, day.day)
+            days.append(
+                {
+                    "key": day.isoformat(),
+                    "name": DAY_LABELS[day.weekday()],
+                    "number": number,
+                    "month": MONTHS[month],
+                    "label": f"{DAY_LABELS[day.weekday()]} {number} {MONTHS[month]}",
+                    "slots": grouped.get(day, []) if today <= day <= horizon_end else [],
+                }
+            )
+        weeks.append({"id": cursor.isoformat(), "days": days})
+        cursor += timedelta(days=7)
+    return weeks
+
+
 def ensure_link(therapist, client):
     link, _created = ClientLink.objects.get_or_create(therapist=therapist, client=client)
     ClientRecord.objects.get_or_create(link=link)
     return link
 
 
-def book_slot(slot, client, amount, reference, attachment=None):
+def book_slot(slot, client, amount, reference, attachment=None, note=""):
     with transaction.atomic():
         profile = TherapistProfile.objects.select_for_update().get(pk=slot.profile_id)
         cutoff = notice_cutoff(profile)
@@ -190,6 +224,7 @@ def book_slot(slot, client, amount, reference, attachment=None):
             status=Booking.Status.AWAITING,
             price=profile.session_price,
             currency=profile.currency,
+            client_note=(note or "")[:1000],
         )
         receipt = Receipt(booking=booking, amount=amount, reference=reference, status=Receipt.Status.SUBMITTED)
         if attachment:

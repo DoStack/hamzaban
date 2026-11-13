@@ -26,9 +26,11 @@
 <div class="panel-grid">
     {% for task in tasks %}
         <article class="record-card">
-            <strong>{{ task.title }}</strong>
+            <div class="record-card__row">
+                <strong>{{ task.title }}</strong>
+                <span class="badge badge--{% if task.completed_at %}completed{% else %}pending{% endif %}">{% if task.completed_at %}انجام‌شده{% else %}باز{% endif %}</span>
+            </div>
             <p>{{ task.client.get_full_name|default:task.client.username }} · {{ task.get_kind_display }}</p>
-            <p class="muted">{% if task.completed_at %}انجام شده{% else %}هنوز باز{% endif %}</p>
         </article>
     {% empty %}
         <p class="empty-state">برای امروز کاری نفرستاده‌اید. از بخش کارها می‌توانید تمرین یا یادآور بسازید.</p>

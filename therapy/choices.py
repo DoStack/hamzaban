@@ -14,6 +14,15 @@ SPECIALTIES = (
 )
 SPECIALTY_CHOICES = tuple((item, item) for item in SPECIALTIES)
 
+EDUCATION = (
+    "کارشناسی",
+    "کارشناسی ارشد",
+    "دکتری",
+    "تخصص روان‌پزشکی",
+    "فلوشیپ",
+)
+EDUCATION_CHOICES = tuple((item, item) for item in EDUCATION)
+
 LANGUAGES = ("فارسی", "انگلیسی", "عربی", "ترکی", "آلمانی", "فرانسوی")
 LANGUAGE_CHOICES = tuple((item, item) for item in LANGUAGES)
 

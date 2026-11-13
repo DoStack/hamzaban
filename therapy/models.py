@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from .choices import (
     APPROACHES,
+    EDUCATION,
     CURRENCIES,
     DEFAULT_GAP_MINUTES,
     DEFAULT_HORIZON_DAYS,
@@ -42,8 +43,10 @@ class TherapistProfile(models.Model):
     license_type = models.CharField("نوع مجوز", max_length=32, choices=LICENSE_TYPES)
     license_number = models.CharField("شماره مجوز", max_length=80)
     license_country = models.CharField("کشور صدور", max_length=80)
+    phone = models.CharField("شماره تماس", max_length=20, blank=True)
     license_file = models.FileField("فایل مجوز", upload_to="therapists/licenses/")
     specialties = models.JSONField("تخصص‌ها", default=list)
+    education = models.JSONField("تحصیلات", default=list)
     approach = models.CharField("رویکرد", max_length=32, choices=APPROACHES)
     introduction = models.TextField("معرفی", validators=[MaxLengthValidator(4000)])
     currency = models.CharField("ارز", max_length=8, choices=CURRENCIES, default="IRR")
@@ -69,7 +72,7 @@ class TherapistProfile(models.Model):
 
     class Meta:
         verbose_name = "درمانگر"
-        verbose_name_plural = "درمانگرها"
+        verbose_name_plural = "لیست درمانگرها"
         ordering = ["display_name"]
 
     def __str__(self):
@@ -82,6 +85,10 @@ class TherapistProfile(models.Model):
             raise ValidationError({"rejection_code": "برای رد، یکی از کدهای ثابت را انتخاب کنید."})
         if len(self.specialties or []) > 5:
             raise ValidationError({"specialties": "حداکثر ۵ تخصص مجاز است."})
+        if len(self.education or []) > 5:
+            raise ValidationError({"education": "حداکثر ۵ مورد تحصیلی مجاز است."})
+        if any(item not in EDUCATION for item in (self.education or [])):
+            raise ValidationError({"education": "تحصیلات را از فهرست انتخاب کنید."})
 
     @property
     def price_label(self):
@@ -110,6 +117,14 @@ class TherapistProfile(models.Model):
             from therapy.services import handle_status_change
 
             handle_status_change(self, previous)
+
+
+
+class TherapistReviewQueue(TherapistProfile):
+    class Meta:
+        proxy = True
+        verbose_name = "صف تأیید"
+        verbose_name_plural = "صف تأیید"
 
 
 class AvailabilityCell(models.Model):
@@ -193,6 +208,7 @@ class Booking(models.Model):
     currency = models.CharField("ارز", max_length=8, choices=CURRENCIES)
     meet_url = models.URLField("پیوند جلسه", blank=True)
     summary = models.TextField("خلاصهٔ جلسه", blank=True, validators=[MaxLengthValidator(4000)])
+    client_note = models.TextField("توضیح مراجع", blank=True, validators=[MaxLengthValidator(1000)])
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

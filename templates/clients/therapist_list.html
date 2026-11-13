@@ -29,6 +29,7 @@
                             <h2>{{ therapist.display_name }}</h2>
                             <p>{{ therapist.get_approach_display }} · {{ therapist.price_label }}</p>
                             <p>{{ therapist.specialties|join:"، " }}</p>
+                            {% if therapist.education %}<p>{{ therapist.education|join:"، " }}</p>{% endif %}
                         </div>
                         <a class="secondary-button" href="{% url 'therapist_detail' therapist.slug %}">زمان‌های آزاد</a>
                     </article>

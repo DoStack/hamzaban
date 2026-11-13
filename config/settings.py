@@ -33,6 +33,22 @@ def debug_enabled(environ=os.environ):
     return environ.get("DJANGO_DEBUG", default) == "1"
 
 
+R2_ENV_NAMES = ("R2_ACCOUNT_ID", "R2_BUCKET_NAME", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY")
+
+
+def file_storage(environ=os.environ):
+    """Use R2 when every value is set. Vercel otherwise keeps files in Postgres."""
+    present = [name for name in R2_ENV_NAMES if environ.get(name)]
+    if present and len(present) != len(R2_ENV_NAMES):
+        missing = ", ".join(name for name in R2_ENV_NAMES if name not in present)
+        raise ImproperlyConfigured(f"Set every R2 value together. Missing {missing}.")
+    if len(present) == len(R2_ENV_NAMES):
+        return "r2"
+    if environ.get("VERCEL"):
+        return "database"
+    return "local"
+
+
 DEBUG = debug_enabled()
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
 if not SECRET_KEY and not DEBUG:
@@ -146,7 +162,23 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-if os.environ.get("VERCEL"):
+_FILE_STORAGE = file_storage()
+if _FILE_STORAGE == "r2":
+    AWS_ACCESS_KEY_ID = os.environ["R2_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = os.environ["R2_SECRET_ACCESS_KEY"]
+    AWS_STORAGE_BUCKET_NAME = os.environ["R2_BUCKET_NAME"]
+    AWS_S3_ENDPOINT_URL = f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com"
+    AWS_S3_REGION_NAME = "auto"
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
+    AWS_S3_ADDRESSING_STYLE = "path"
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = True
+    AWS_S3_FILE_OVERWRITE = True
+    STORAGES = {
+        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+elif _FILE_STORAGE == "database":
     STORAGES = {
         "default": {"BACKEND": "therapy.storage.DatabaseStorage"},
         "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
@@ -227,7 +259,8 @@ UNFOLD = {
                 "separator": True,
                 "collapsible": False,
                 "items": [
-                    {"title": "صف تأیید", "icon": "verified", "link": "/admin/therapy/therapistprofile/"},
+                    {"title": "صف تأیید", "icon": "verified", "link": "/admin/therapy/therapistreviewqueue/"},
+                    {"title": "لیست درمانگرها", "icon": "groups", "link": "/admin/therapy/therapistprofile/"},
                     {"title": "ساعت‌های هفتگی", "icon": "calendar_month", "link": "/admin/therapy/availabilitycell/"},
                     {"title": "استثناهای ساعت", "icon": "event_busy", "link": "/admin/therapy/availabilityclosure/"},
                     {"title": "وقت‌ها", "icon": "schedule", "link": "/admin/therapy/slot/"},

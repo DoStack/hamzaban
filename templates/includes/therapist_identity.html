@@ -6,7 +6,7 @@
     {% endif %}
     <div>
         <strong>{{ request.therapist_profile.display_name }}</strong>
-        <span>{{ request.therapist_profile.get_status_display }}</span>
+        <span class="badge badge--{{ request.therapist_profile.status|lower }}">{{ request.therapist_profile.get_status_display }}</span>
     </div>
     {% include "includes/theme_toggle.html" %}
 </div>

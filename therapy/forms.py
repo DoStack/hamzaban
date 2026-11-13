@@ -12,6 +12,7 @@ from therapy.calendar import grid_starts, parse_jalali_date
 from therapy.choices import (
     APPROACHES,
     CURRENCIES,
+    EDUCATION_CHOICES,
     LANGUAGE_CHOICES,
     LICENSE_TYPES,
     MAX_UPLOAD_BYTES,
@@ -42,6 +43,12 @@ class SpecialtyMixin:
             raise forms.ValidationError("حداکثر ۵ تخصص مجاز است.")
         return value
 
+    def clean_education(self):
+        value = self.cleaned_data.get("education") or []
+        if len(value) > 5:
+            raise forms.ValidationError("حداکثر ۵ مورد تحصیلی مجاز است.")
+        return value
+
 
 class TherapistRegistrationForm(SpecialtyMixin, ClientRegistrationForm):
     display_name = forms.CharField(label="نام نمایشی", max_length=150)
@@ -56,12 +63,19 @@ class TherapistRegistrationForm(SpecialtyMixin, ClientRegistrationForm):
     license_type = forms.ChoiceField(label="نوع مجوز", choices=LICENSE_TYPES)
     license_number = forms.CharField(label="شماره مجوز", max_length=80)
     license_country = forms.CharField(label="کشور صدور", max_length=80)
+    phone = forms.CharField(label="شماره تماس", max_length=20, required=False)
     license_file = forms.FileField(label="فایل مجوز")
     specialties = forms.MultipleChoiceField(
         label="تخصص‌ها",
         choices=SPECIALTY_CHOICES,
         widget=forms.CheckboxSelectMultiple(attrs={"class": "choice-grid"}),
         help_text="حداکثر ۵ مورد.",
+    )
+    education = forms.MultipleChoiceField(
+        label="تحصیلات",
+        choices=EDUCATION_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "choice-grid"}),
+        help_text="حداقل یک مورد.",
     )
     approach = forms.ChoiceField(label="رویکرد", choices=APPROACHES)
     introduction = forms.CharField(label="معرفی", max_length=4000, widget=forms.Textarea(attrs={"rows": 4}))
@@ -79,9 +93,9 @@ class TherapistRegistrationForm(SpecialtyMixin, ClientRegistrationForm):
         super().__init__(*args, **kwargs)
         self.field_groups = [
             ("حساب کاربری", ["first_name", "username", "email", "password1", "password2"]),
-            ("پروفایل", ["display_name", "photo", "gender", "languages", "years_experience"]),
+            ("پروفایل", ["display_name", "photo", "gender", "languages", "years_experience", "phone"]),
             ("مجوز", ["license_type", "license_number", "license_country", "license_file"]),
-            ("کار درمانی", ["specialties", "approach", "introduction", "currency", "session_price", "timezone"]),
+            ("کار درمانی", ["specialties", "education", "approach", "introduction", "currency", "session_price", "timezone"]),
         ]
 
     def clean_photo(self):
@@ -106,8 +120,10 @@ class TherapistRegistrationForm(SpecialtyMixin, ClientRegistrationForm):
                 license_type=self.cleaned_data["license_type"],
                 license_number=self.cleaned_data["license_number"],
                 license_country=self.cleaned_data["license_country"],
+                phone=self.cleaned_data.get("phone", ""),
                 license_file=self.cleaned_data["license_file"],
                 specialties=self.cleaned_data["specialties"],
+                education=self.cleaned_data["education"],
                 approach=self.cleaned_data["approach"],
                 introduction=self.cleaned_data["introduction"],
                 currency=self.cleaned_data["currency"],
@@ -144,6 +160,12 @@ class TherapistProfileForm(SpecialtyMixin, forms.ModelForm):
         widget=forms.CheckboxSelectMultiple(attrs={"class": "choice-grid"}),
         help_text="حداکثر ۵ مورد.",
     )
+    education = forms.MultipleChoiceField(
+        label="تحصیلات",
+        choices=EDUCATION_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "choice-grid"}),
+        help_text="حداقل یک مورد.",
+    )
 
     class Meta:
         model = TherapistProfile
@@ -156,8 +178,10 @@ class TherapistProfileForm(SpecialtyMixin, forms.ModelForm):
             "license_type",
             "license_number",
             "license_country",
+            "phone",
             "license_file",
             "specialties",
+            "education",
             "approach",
             "introduction",
             "currency",
@@ -182,6 +206,12 @@ class TherapistProfileForm(SpecialtyMixin, forms.ModelForm):
 class ReceiptForm(forms.Form):
     amount = forms.DecimalField(label="مبلغ پرداخت‌شده", min_value=0, max_digits=12, decimal_places=2)
     reference = forms.CharField(label="شماره پیگیری", max_length=120)
+    note = forms.CharField(
+        label="توضیح برای درمانگر",
+        required=False,
+        max_length=1000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
     attachment = forms.FileField(label="تصویر رسید", required=False)
 
     def clean_attachment(self):

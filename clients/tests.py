@@ -209,8 +209,19 @@ class TherapistRegistrationTests(TestCase):
         self.assertFalse(user.is_staff)
         self.assertEqual(user.therapist_profile.status, TherapistProfile.Status.PENDING)
         self.assertEqual(user.therapist_profile.display_name, "سارا نیک‌فر")
+        self.assertEqual(user.therapist_profile.education, ["کارشناسی ارشد"])
         profile = self.client.get(reverse("client_profile"))
         self.assertRedirects(profile, reverse("therapist_home"))
+
+    def test_registration_requires_an_education_choice(self):
+        payload = registration_data(education=[])
+        payload["license_file"] = SimpleUploadedFile("license.pdf", b"%PDF-1.4", content_type="application/pdf")
+
+        response = self.client.post(reverse("therapist_register"), payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "تحصیلات")
+        self.assertFalse(get_user_model().objects.filter(username="sara").exists())
 
     def test_signed_in_client_skips_therapist_registration(self):
         user = get_user_model().objects.create_user(username="leila", password="Safe-pass-48")
@@ -323,9 +334,16 @@ class PublicSiteTests(TestCase):
         response = self.client.get(reverse("api_therapist_detail", args=["sara-nikfar"]))
         payload = response.json()
         times = [slot["time"] for day in payload["days"] for slot in day["slots"]]
+        week_times = [slot["time"] for week in payload["weeks"] for day in week["days"] for slot in day["slots"]]
 
         self.assertEqual(payload["therapist"]["name"], "سارا نیک‌فر")
+        self.assertEqual(payload["therapist"]["license_number"], "LIC-sara")
+        self.assertEqual(payload["therapist"]["timezone_label"], "تهران")
+        self.assertEqual(payload["duration"], "۳۰ دقیقه")
+        self.assertEqual(payload["notice"], 12)
         self.assertIn("12:00", times)
+        self.assertIn("12:00", week_times)
+        self.assertEqual(len(payload["weeks"][0]["days"]), 7)
         self.assertContains(self.client.get(reverse("therapist_detail", args=["sara-nikfar"])), 'src="/static/build/app.js"')
 
     def test_unknown_therapist_is_not_found(self):
@@ -413,6 +431,7 @@ class AdminTableTests(TestCase):
             "auth_user_user_permissions",
             "auth_group_permissions",
             "therapy_therapistprofile",
+            "therapy_therapistreviewqueue",
             "therapy_availabilitycell",
             "therapy_availabilityclosure",
             "therapy_slot",
@@ -435,8 +454,222 @@ class AdminTableTests(TestCase):
         self.assertContains(index, "داده‌های پایه")
         self.assertContains(index, "تنظیمات")
         self.assertContains(index, "درمانگر")
+        self.assertContains(index, "صف تأیید")
+        self.assertContains(index, "لیست درمانگرها")
         self.assertContains(index, "مراجع")
+
+    def test_review_queue_lists_only_pending_therapists(self):
+        get_user_model().objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Safe-pass-48",
+        )
+        self.client.force_login(get_user_model().objects.get(username="root"))
+        waiting = make_profile(username="waiting", display_name="در انتظار بررسی", status=TherapistProfile.Status.PENDING)
+        approved = make_profile(
+            username="listed",
+            display_name="درمانگر تأییدشده",
+            status=TherapistProfile.Status.APPROVED,
+            slug="listed-therapist",
+        )
+
+        queue = self.client.get(reverse("admin:therapy_therapistreviewqueue_changelist"))
+        everyone = self.client.get(reverse("admin:therapy_therapistprofile_changelist"))
+
+        self.assertContains(queue, waiting.display_name)
+        self.assertNotContains(queue, approved.display_name)
+        self.assertContains(everyone, waiting.display_name)
+        self.assertContains(everyone, approved.display_name)
         self.assertFalse(settings.UNFOLD["SIDEBAR"]["show_all_applications"])
+
+    def test_profile_lists_link_related_record_counts(self):
+        from datetime import time, timedelta
+        from decimal import Decimal
+
+        from django.utils import timezone
+
+        from therapy.models import (
+            AvailabilityCell,
+            AvailabilityClosure,
+            Booking,
+            ClientLink,
+            ClientProfile,
+            ClientRecord,
+            MoodLog,
+            Notification,
+            Receipt,
+            Slot,
+            Task,
+        )
+
+        admin = get_user_model().objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Safe-pass-48",
+        )
+        self.client.force_login(admin)
+        profile = make_profile(username="counted", display_name="درمانگر شمارش", slug="counted")
+        other = make_profile(username="other-therapist", display_name="درمانگر دیگر", slug="other-therapist")
+        client = get_user_model().objects.create_user(username="counted-client", password="Safe-pass-48")
+        client_profile = ClientProfile.objects.create(user=client, telegram_username="counted")
+        AvailabilityCell.objects.create(profile=profile, weekday=0, start=time(10, 0))
+        AvailabilityClosure.objects.create(profile=profile, date=timezone.localdate())
+        start = timezone.now() + timedelta(days=3)
+        slot = Slot.objects.create(
+            profile=profile,
+            starts_at=start,
+            ends_at=start + timedelta(minutes=30),
+            status=Slot.Status.HELD,
+        )
+        booking = Booking.objects.create(
+            client=client,
+            therapist=profile,
+            slot=slot,
+            starts_at=start,
+            ends_at=slot.ends_at,
+            price=Decimal("10.00"),
+            currency="IRR",
+        )
+        Receipt.objects.create(booking=booking, amount=Decimal("10.00"), reference="COUNT-1")
+        link = ClientLink.objects.create(therapist=profile, client=client)
+        ClientRecord.objects.create(link=link, notes="یادداشت")
+        Task.objects.create(
+            client=client,
+            therapist=profile,
+            kind=Task.Kind.PRACTICE,
+            title="شمارش کار",
+            body="متن",
+            due_on=timezone.localdate(),
+        )
+        Notification.objects.create(user=profile.user, title="خبر درمانگر", body="متن")
+        Notification.objects.create(user=client, title="خبر مراجع", body="متن")
+        MoodLog.objects.create(client=client, emoji="🙂", word="آرام", logged_on=timezone.localdate())
+        other_start = start + timedelta(days=1)
+        other_slot = Slot.objects.create(
+            profile=other,
+            starts_at=other_start,
+            ends_at=other_start + timedelta(minutes=30),
+        )
+        Booking.objects.create(
+            client=admin,
+            therapist=other,
+            slot=other_slot,
+            starts_at=other_start,
+            ends_at=other_slot.ends_at,
+            price=Decimal("20.00"),
+            currency="IRR",
+        )
+
+        def linked(url_name, lookup, value, count):
+            return f'href="{reverse(url_name)}?{lookup}={value}">{count}</a>'
+
+        therapists = self.client.get(reverse("admin:therapy_therapistprofile_changelist"))
+        queue = self.client.get(reverse("admin:therapy_therapistreviewqueue_changelist"))
+        clients = self.client.get(reverse("admin:therapy_clientprofile_changelist"))
+        therapist_links = (
+            ("admin:therapy_availabilitycell_changelist", "profile__id__exact", 1),
+            ("admin:therapy_availabilityclosure_changelist", "profile__id__exact", 1),
+            ("admin:therapy_slot_changelist", "profile__id__exact", 1),
+            ("admin:therapy_booking_changelist", "therapist__id__exact", 1),
+            ("admin:therapy_receipt_changelist", "booking__therapist__id__exact", 1),
+            ("admin:therapy_clientlink_changelist", "therapist__id__exact", 1),
+            ("admin:therapy_clientrecord_changelist", "link__therapist__id__exact", 1),
+            ("admin:therapy_task_changelist", "therapist__id__exact", 1),
+            ("admin:therapy_notification_changelist", "user__id__exact", 1),
+        )
+        for url_name, lookup, count in therapist_links:
+            needle = linked(url_name, lookup, profile.pk if lookup != "user__id__exact" else profile.user_id, count)
+            self.assertContains(therapists, needle)
+            self.assertContains(queue, needle)
+        self.assertContains(
+            therapists,
+            linked("admin:therapy_booking_changelist", "therapist__id__exact", other.pk, 1),
+        )
+        self.assertContains(
+            therapists,
+            linked("admin:therapy_receipt_changelist", "booking__therapist__id__exact", other.pk, 0),
+        )
+
+        client_links = (
+            ("admin:therapy_booking_changelist", "client__id__exact", 1),
+            ("admin:therapy_receipt_changelist", "booking__client__id__exact", 1),
+            ("admin:therapy_notification_changelist", "user__id__exact", 1),
+            ("admin:therapy_clientlink_changelist", "client__id__exact", 1),
+            ("admin:therapy_clientrecord_changelist", "link__client__id__exact", 1),
+            ("admin:therapy_moodlog_changelist", "client__id__exact", 1),
+            ("admin:therapy_task_changelist", "client__id__exact", 1),
+        )
+        for url_name, lookup, count in client_links:
+            self.assertContains(clients, linked(url_name, lookup, client_profile.user_id, count))
+
+        filtered = self.client.get(
+            reverse("admin:therapy_booking_changelist"),
+            {"therapist__id__exact": profile.pk},
+        )
+        self.assertContains(filtered, "1 نتیجه")
+        self.assertContains(filtered, profile.display_name)
+        self.assertNotContains(filtered, f">{other.display_name}</td>")
+
+    def test_status_columns_render_colored_chips(self):
+        from datetime import timedelta
+        from decimal import Decimal
+
+        from django.utils import timezone
+
+        from therapy.models import Booking, Notification, Receipt, Slot, Task
+
+        user = get_user_model().objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Safe-pass-48",
+        )
+        self.client.force_login(user)
+        profile = make_profile()
+        start = timezone.now() + timedelta(days=2)
+        slot = Slot.objects.create(
+            profile=profile,
+            starts_at=start,
+            ends_at=start + timedelta(minutes=30),
+            status=Slot.Status.OPEN,
+        )
+        booking = Booking.objects.create(
+            client=user,
+            therapist=profile,
+            slot=slot,
+            starts_at=start,
+            ends_at=slot.ends_at,
+            status=Booking.Status.AWAITING,
+            price=Decimal("10.00"),
+            currency="IRR",
+        )
+        Receipt.objects.create(
+            booking=booking,
+            amount=Decimal("10.00"),
+            reference="R-1",
+            status=Receipt.Status.SUBMITTED,
+        )
+        Task.objects.create(
+            client=user,
+            therapist=profile,
+            kind=Task.Kind.PRACTICE,
+            title="تمرین",
+            body="متن",
+            due_on=timezone.localdate(),
+        )
+        Notification.objects.create(user=user, title="خبر", body="متن")
+
+        pages = {
+            "therapy_therapistprofile": ("در انتظار بررسی", "bg-orange-100"),
+            "therapy_slot": ("آزاد", "bg-green-100"),
+            "therapy_booking": ("در انتظار بررسی رسید", "bg-orange-100"),
+            "therapy_receipt": ("ارسال‌شده", "bg-orange-100"),
+            "therapy_task": ("باز", "bg-orange-100"),
+            "therapy_notification": ("خوانده‌نشده", "bg-orange-100"),
+        }
+        for name, (label, color) in pages.items():
+            page = self.client.get(reverse(f"admin:{name}_changelist"))
+            self.assertContains(page, label, msg_prefix=name)
+            self.assertContains(page, color, msg_prefix=name)
 
 
 class VercelDeploymentTests(TestCase):
@@ -449,6 +682,7 @@ class VercelDeploymentTests(TestCase):
         self.assertIn("manage.py migrate --noinput", release)
         self.assertIn("manage.py import_directory", release)
         self.assertIn("manage.py ensure_superuser", release)
+        self.assertIn("manage.py sync_uploads_to_r2", release)
         self.assertNotIn("outputDirectory", config)
         project = (settings.BASE_DIR / "pyproject.toml").read_text(encoding="utf-8")
         self.assertIn("[project]", project)
@@ -489,6 +723,23 @@ class VercelDeploymentTests(TestCase):
         )
 
         self.assertEqual(selected, "postgres://direct.example/hamzaban")
+
+    def test_r2_is_used_only_when_every_value_is_set(self):
+        from django.core.exceptions import ImproperlyConfigured
+
+        from config.settings import file_storage
+
+        complete = {
+            "R2_ACCOUNT_ID": "account",
+            "R2_BUCKET_NAME": "hamzaban",
+            "R2_ACCESS_KEY_ID": "key",
+            "R2_SECRET_ACCESS_KEY": "secret",
+        }
+        self.assertEqual(file_storage({}), "local")
+        self.assertEqual(file_storage({"VERCEL": "1"}), "database")
+        self.assertEqual(file_storage({**complete, "VERCEL": "1"}), "r2")
+        with self.assertRaises(ImproperlyConfigured):
+            file_storage({"R2_BUCKET_NAME": "hamzaban"})
 
     def test_production_debug_defaults_off(self):
         from config.settings import debug_enabled

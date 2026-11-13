@@ -18,9 +18,11 @@ from clients.forms import ClientRegistrationForm
 from clients.views import account_home
 from therapy.access import is_therapist
 from therapy.calendar import MONTHS, WEEKDAY_NAMES, format_jalali, gregorian_to_jalali, month_bounds, month_weeks, shift_month
+from therapy.choices import SLOT_MINUTES
 from therapy.choices import (
     APPROACHES,
     CURRENCIES,
+    EDUCATION_CHOICES,
     DAY_LABELS,
     DISPLAY_DAYS,
     GENDERS,
@@ -48,6 +50,7 @@ from therapy.services import (
     SlotTaken,
     accept_receipt,
     add_closure,
+    booking_weeks,
     book_slot,
     cancel_booking,
     complete_booking,
@@ -152,24 +155,31 @@ def _therapist_card(profile):
         "price": profile.price_label,
         "photo": reverse("therapist_photo", args=[profile.slug]) if profile.photo else "",
         "specialties": profile.specialties or [],
+        "education": profile.education or [],
         "years": profile.years_experience,
         "gender": profile.get_gender_display(),
         "timezone": profile.timezone,
+        "timezone_label": profile.get_timezone_display(),
         "languages": profile.languages or [],
         "license_type": profile.get_license_type_display(),
+        "license_number": profile.license_number,
         "license_country": profile.license_country,
+        "phone": profile.phone,
         "introduction": profile.introduction,
     }
 
 
 def _note(note):
     local = timezone.localtime(note.created_at)
+    unread = note.read_at is None
     return {
         "id": note.pk,
         "title": note.title,
         "body": note.body,
         "link": note.link,
         "when": f"{format_jalali(local)}، {local.strftime('%H:%M')}",
+        "status": "unread" if unread else "read",
+        "status_label": "خوانده‌نشده" if unread else "خوانده‌شده",
     }
 
 
@@ -185,10 +195,12 @@ def me(request):
         return _ok(authenticated=False)
     photo = ""
     status = ""
+    status_code = ""
     if is_therapist(user):
         profile = getattr(user, "therapist_profile", None)
         if profile is not None:
             status = profile.get_status_display()
+            status_code = profile.status.lower()
             if profile.photo:
                 photo = reverse("therapist_photo", args=[profile.slug])
     return _ok(
@@ -199,6 +211,7 @@ def me(request):
         username=user.get_username(),
         photo=photo,
         status=status,
+        status_code=status_code,
         home=reverse(account_home(user)),
     )
 
@@ -255,6 +268,7 @@ def _option_payload():
         "genders": _choices(GENDERS),
         "languages": _choices(LANGUAGE_CHOICES),
         "specialties": _choices(SPECIALTY_CHOICES),
+        "education": _choices(EDUCATION_CHOICES),
         "approaches": _choices(APPROACHES),
         "licenses": _choices(LICENSE_TYPES),
         "currencies": _choices(CURRENCIES),
@@ -283,6 +297,9 @@ def therapist_detail_api(request, slug):
     return _ok(
         therapist=_therapist_card(profile),
         days=open_slots_by_day(profile),
+        weeks=booking_weeks(profile),
+        duration=f"{str(SLOT_MINUTES).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))} دقیقه",
+        notice=profile.min_notice_hours,
         can_book=request.user.is_authenticated and not is_therapist(request.user),
         is_therapist=is_therapist(request.user),
     )
@@ -311,7 +328,14 @@ def book_api(request, slug, slot_id):
         if not form.is_valid():
             return _form_fail(form)
         try:
-            book_slot(slot, request.user, form.cleaned_data["amount"], form.cleaned_data["reference"], form.cleaned_data.get("attachment"))
+            book_slot(
+                slot,
+                request.user,
+                form.cleaned_data["amount"],
+                form.cleaned_data["reference"],
+                form.cleaned_data.get("attachment"),
+                form.cleaned_data.get("note", ""),
+            )
         except SlotTaken:
             return _fail("این وقت همین حالا گرفته شد. وقت دیگری را انتخاب کنید.", 409)
     return _ok(next=reverse("client_payments"), message="رسید ثبت شد و درمانگر آن را می‌بیند.")
@@ -373,6 +397,7 @@ def _booking_row(booking, zone_name, now):
         "can_cancel": booking.status in {Booking.Status.AWAITING, Booking.Status.CONFIRMED} and booking.starts_at - now >= notice,
         "meet_url": booking.meet_url,
         "summary": booking.summary,
+        "note": booking.client_note,
         "receipt": None
         if receipt is None
         else {
@@ -427,6 +452,8 @@ def client_home_api(request):
                 "reward": item.reward,
                 "kind": item.get_kind_display(),
                 "done": item.completed_at is not None,
+                "status": "completed" if item.completed_at else "pending",
+                "status_label": "انجام‌شده" if item.completed_at else "باز",
             }
             for item in tasks
         ],
@@ -525,12 +552,23 @@ def therapist_home_api(request):
                 "id": item.pk,
                 "client": _person(item.client),
                 "time": _when(item.starts_at, profile.timezone)[1],
+                "status": item.status.lower(),
                 "status_label": item.get_status_display(),
                 "prep": (records.get(item.client_id).pre_session_summary if records.get(item.client_id) else ""),
             }
             for item in sessions
         ],
-        tasks=[{"id": item.pk, "title": item.title, "client": _person(item.client), "kind": item.get_kind_display()} for item in tasks],
+        tasks=[
+            {
+                "id": item.pk,
+                "title": item.title,
+                "client": _person(item.client),
+                "kind": item.get_kind_display(),
+                "status": "completed" if item.completed_at else "pending",
+                "status_label": "انجام‌شده" if item.completed_at else "باز",
+            }
+            for item in tasks
+        ],
     )
 
 
@@ -618,7 +656,16 @@ def therapist_crm_api(request, user_id):
     return _ok(
         client={"id": link.client_id, "name": _person(link.client)},
         record={"notes": record.notes, "mind_map": record.mind_map, "reports": record.reports, "pre_session_summary": record.pre_session_summary},
-        sessions=[{"id": item.pk, "date": _when(item.starts_at, profile.timezone)[0], "time": _when(item.starts_at, profile.timezone)[1], "status_label": item.get_status_display()} for item in sessions],
+        sessions=[
+            {
+                "id": item.pk,
+                "date": _when(item.starts_at, profile.timezone)[0],
+                "time": _when(item.starts_at, profile.timezone)[1],
+                "status": item.status.lower(),
+                "status_label": item.get_status_display(),
+            }
+            for item in sessions
+        ],
         moods=[{"emoji": item.emoji, "word": item.word, "when": format_jalali(item.logged_on)} for item in moods],
     )
 
@@ -659,6 +706,8 @@ def therapist_tasks_api(request):
                 "kind": item.get_kind_display(),
                 "due": format_jalali(item.due_on),
                 "done": item.completed_at is not None,
+                "status": "completed" if item.completed_at else "pending",
+                "status_label": "انجام‌شده" if item.completed_at else "باز",
             }
             for item in assigned
         ],
@@ -671,6 +720,7 @@ def _receipt_row(item):
         "reference": item.reference,
         "amount": item.amount_label,
         "client": _person(item.booking.client),
+        "status": item.status.lower(),
         "status_label": item.get_status_display(),
     }
 
@@ -701,7 +751,10 @@ def therapist_profile_api(request):
                 "license_type": profile.license_type,
                 "license_number": profile.license_number,
                 "license_country": profile.license_country,
+                "phone": profile.phone,
+                "phone": profile.phone,
                 "specialties": profile.specialties or [],
+        "education": profile.education or [],
                 "approach": profile.approach,
                 "introduction": profile.introduction,
                 "currency": profile.currency,

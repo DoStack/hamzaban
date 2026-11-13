@@ -7,21 +7,51 @@
 <article class="landing-section" aria-labelledby="therapist-name">
     <div class="landing-wrap therapist-detail">
         <p class="eyebrow"><a href="{% url 'therapist_list' %}">درمانگرها</a></p>
-        <header class="therapist-detail__header">
-            {% if therapist.photo %}
-                <img class="avatar avatar--large" src="{% url 'therapist_photo' therapist.slug %}" alt="">
-            {% else %}
-                <span class="avatar avatar--large" aria-hidden="true">{{ therapist.display_name|first }}</span>
-            {% endif %}
-            <div>
-                <h1 id="therapist-name">{{ therapist.display_name }}</h1>
-                <p class="muted">{{ therapist.get_approach_display }}{% if therapist.years_experience %} · {{ therapist.years_experience }} سال تجربه{% endif %} · {{ therapist.price_label }}</p>
-                <p class="muted">{{ therapist.specialties|join:"، " }} · {{ therapist.languages|join:"، " }}</p>
-                <p class="muted">{{ therapist.get_gender_display }} · وقت {{ therapist.timezone }}</p>
-            </div>
-        </header>
-        <p>{{ therapist.introduction|linebreaksbr }}</p>
-        <p class="muted">مجوز {{ therapist.get_license_type_display }}، صادرشده در {{ therapist.license_country }}.</p>
+        <section class="profile-box">
+            <h2>اطلاعات درمانگر</h2>
+            <header class="therapist-detail__header">
+                {% if therapist.photo %}
+                    <img class="avatar avatar--large" src="{% url 'therapist_photo' therapist.slug %}" alt="">
+                {% else %}
+                    <span class="avatar avatar--large" aria-hidden="true">{{ therapist.display_name|first }}</span>
+                {% endif %}
+                <div>
+                    <h1 id="therapist-name">{{ therapist.display_name }}</h1>
+                    <p class="muted">{{ therapist.get_approach_display }}</p>
+                </div>
+            </header>
+            <dl class="profile-facts">
+                <div><dt>جنسیت</dt><dd>{{ therapist.get_gender_display }}</dd></div>
+                <div><dt>سال تجربه</dt><dd>{% if therapist.years_experience %}{{ therapist.years_experience }} سال{% else %}ثبت نشده{% endif %}</dd></div>
+                <div><dt>رویکرد</dt><dd>{{ therapist.get_approach_display }}</dd></div>
+                <div><dt>منطقه زمانی</dt><dd>{{ therapist.get_timezone_display }}</dd></div>
+                <div><dt>شماره تماس</dt><dd>{{ therapist.phone|default:"ثبت نشده" }}</dd></div>
+            </dl>
+        </section>
+        <section class="profile-box">
+            <h2>زبان‌ها</h2>
+            {% if therapist.languages %}<ul class="chip-list">{% for item in therapist.languages %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="muted">ثبت نشده</p>{% endif %}
+        </section>
+        <section class="profile-box">
+            <h2>تخصص‌ها</h2>
+            {% if therapist.specialties %}<ul class="chip-list">{% for item in therapist.specialties %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="muted">ثبت نشده</p>{% endif %}
+        </section>
+        <section class="profile-box">
+            <h2>تحصیلات</h2>
+            {% if therapist.education %}<ul class="chip-list">{% for item in therapist.education %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}<p class="muted">ثبت نشده</p>{% endif %}
+        </section>
+        <section class="profile-box">
+            <h2>معرفی</h2>
+            <p>{{ therapist.introduction|default:"ثبت نشده" }}</p>
+        </section>
+        <section class="profile-box">
+            <h2>اطلاعات جواز</h2>
+            <dl class="profile-facts">
+                <div><dt>نوع مجوز</dt><dd>{{ therapist.get_license_type_display }}</dd></div>
+                <div><dt>شماره مجوز</dt><dd>{{ therapist.license_number }}</dd></div>
+                <div><dt>کشور صدور</dt><dd>{{ therapist.license_country }}</dd></div>
+            </dl>
+        </section>
 
         <section aria-labelledby="schedule-heading">
             <h2 id="schedule-heading">زمان‌های آزاد</h2>

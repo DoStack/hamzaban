@@ -173,6 +173,7 @@ def book(request, slug, slot_id):
                     form.cleaned_data["amount"],
                     form.cleaned_data["reference"],
                     form.cleaned_data.get("attachment"),
+                    form.cleaned_data.get("note", ""),
                 )
             except SlotTaken:
                 messages.error(request, "این وقت همین حالا گرفته شد. وقت دیگری را انتخاب کنید.")
@@ -180,7 +181,7 @@ def book(request, slug, slot_id):
             messages.success(request, "رسید ثبت شد و درمانگر آن را می‌بیند.")
             return redirect("client_payments")
         if request.method == "GET":
-            return render_spa(request, "site")
+            return redirect(f"{reverse('therapist_detail', args=[profile.slug])}?slot={slot.pk}")
         return render(
             request,
             "clients/book.html",

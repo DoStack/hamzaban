@@ -7,3 +7,7 @@ DATABASES = {
     }
 }
 MEDIA_ROOT = "/tmp/hamzaban-test-media"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}

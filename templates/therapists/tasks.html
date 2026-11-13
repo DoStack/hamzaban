@@ -22,12 +22,12 @@
         <article class="record-card" id="task-{{ task.pk }}">
             <div class="record-card__row">
                 <strong>{{ task.title }}</strong>
-                <span class="badge">{{ task.get_kind_display }}</span>
+                <span class="badge badge--{% if task.completed_at %}completed{% else %}pending{% endif %}">{% if task.completed_at %}انجام‌شده{% else %}باز{% endif %}</span>
             </div>
+            <p class="muted">{{ task.get_kind_display }}</p>
             <p>{{ task.client.get_full_name|default:task.client.username }} · {{ task.due_on|jalali }}</p>
             <p>{{ task.body|linebreaksbr }}</p>
             {% if task.reward %}<p class="reward">پاداش: {{ task.reward }}</p>{% endif %}
-            <p class="muted">{% if task.completed_at %}انجام شده{% else %}باز{% endif %}</p>
         </article>
     {% empty %}
         <p class="empty-state">هنوز کاری نفرستاده‌اید.</p>

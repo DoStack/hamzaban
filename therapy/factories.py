@@ -79,6 +79,7 @@ def registration_data(**overrides):
         "license_number": "A-100",
         "license_country": "ایران",
         "specialties": ["اضطراب"],
+        "education": ["کارشناسی ارشد"],
         "approach": "cbt",
         "introduction": "با اضطراب کار می‌کنم.",
         "currency": "IRR",

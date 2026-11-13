@@ -8,8 +8,9 @@
         {% endif %}
             <div class="record-card__row">
                 <strong>{{ note.title }}</strong>
-                <span class="muted">{{ note.created_at|jalali }}</span>
+                <span class="badge badge--{% if note.read_at %}read{% else %}unread{% endif %}">{% if note.read_at %}خوانده‌شده{% else %}خوانده‌نشده{% endif %}</span>
             </div>
+            <p class="muted">{{ note.created_at|jalali }}</p>
             <p>{{ note.body|linebreaksbr }}</p>
         {% if note.link %}
             </a>

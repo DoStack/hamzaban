@@ -45,6 +45,7 @@ Do not copy Service45 wholesale. Keep its car-service models, migrations, busine
 - Handle failed requests visibly with short, actionable SweetAlert-style feedback. Cover timeout, validation, unauthorized, forbidden, not found, rate-limit, and server errors; do not fail silently.
 - Keep consistent 4xx and 5xx pages, with a light tone, locally served Lottie artwork, and recovery actions such as retry, back, home, or support. Make them usable on mobile and in both themes.
 - Require two deliberate confirmations before logging a user out.
+- Show every record status as a colored chip in the admin lists, the client app, the therapist app, and list cards. Use the model's Persian label. Waiting statuses are amber (`pending`, `awaiting`, `submitted`, `held`, `unread`). Active statuses are teal (`approved`, `confirmed`, `accepted`, `open`). Booked is blue. Finished and read statuses are muted (`completed`, `read`). Rejected, cancelled, suspended, and refunded statuses are red. Add the same chip, in both themes, when a new status is introduced. In admin, render it with Unfold's label chip.
 
 ## Privacy and correctness
 

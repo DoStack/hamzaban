@@ -6,6 +6,8 @@ dependencies = [
   "Django==5.2",
   "psycopg2-binary>=2.9",
   "django-unfold>=0.43",
+  "django-storages>=1.14",
+  "boto3>=1.35",
 ]
 
 [tool.uv]

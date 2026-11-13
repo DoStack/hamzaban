@@ -393,6 +393,8 @@ class PanelSmokeTests(TestCase):
         self.assertRedirects(blocked, reverse("therapist_detail", args=[self.profile.slug]))
 
         self.client.force_login(self.client_user)
+        opened = self.client.get(reverse("book_slot", args=[self.profile.slug, slot.pk]))
+        self.assertRedirects(opened, f"{reverse('therapist_detail', args=[self.profile.slug])}?slot={slot.pk}")
         page = self.client.get(reverse("api_book", args=[self.profile.slug, slot.pk]))
         self.assertEqual(page.json()["therapist"], "درمانگر آزاد")
         booked = self.client.post(
@@ -401,10 +403,12 @@ class PanelSmokeTests(TestCase):
                 "amount": "500000",
                 "reference": "PAY-9",
                 "attachment": SimpleUploadedFile("receipt.pdf", b"%PDF-1.4", content_type="application/pdf"),
+                "note": "می‌خواهم دربارهٔ خواب حرف بزنیم.",
             },
         )
         self.assertRedirects(booked, reverse("client_payments"))
         booking = Booking.objects.get(client=self.client_user)
+        self.assertEqual(booking.client_note, "می‌خواهم دربارهٔ خواب حرف بزنیم.")
         local = timezone.localtime(booking.starts_at)
         year, month, _day = gregorian_to_jalali(local.year, local.month, local.day)
 
@@ -478,6 +482,8 @@ class PanelSmokeTests(TestCase):
 
         me = self.client.get(reverse("api_me")).json()
         self.assertEqual(me["photo"], reverse("therapist_photo", args=[self.profile.slug]))
+        self.assertEqual(me["status_code"], self.profile.status.lower())
+        self.assertEqual(me["status"], self.profile.get_status_display())
 
         plain = make_profile(username="nophoto", display_name="بدون عکس")
         self.client.force_login(plain.user)
@@ -509,6 +515,7 @@ class PanelSmokeTests(TestCase):
                 "license_number": self.profile.license_number,
                 "license_country": self.profile.license_country,
                 "specialties": self.profile.specialties,
+                "education": ["کارشناسی ارشد"],
                 "approach": self.profile.approach,
                 "introduction": "معرفی به‌روز شده.",
                 "currency": self.profile.currency,
