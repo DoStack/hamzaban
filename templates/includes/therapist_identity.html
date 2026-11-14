@@ -6,6 +6,7 @@
     {% endif %}
     <div>
         <strong>{{ request.therapist_profile.display_name }}</strong>
+        <span class="profile-identity__email" dir="ltr">{{ request.user.email|default:"ایمیل ثبت نشده" }}</span>
         <span dir="ltr">{{ request.therapist_profile.phone|default:"ثبت نشده" }}</span>
     </div>
     {% include "includes/theme_toggle.html" %}

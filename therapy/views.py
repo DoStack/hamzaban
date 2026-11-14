@@ -26,6 +26,7 @@ from therapy.calendar import (
     shift_month,
 )
 from therapy.choices import DAY_LABELS, DISPLAY_DAYS, MOODS
+from therapy.google_calendar import GoogleCalendarError, authorization_url, configured, connect_profile, read_state, redirect_uri
 from therapy.forms import (
     AddStudentForm,
     ClosureForm,
@@ -447,6 +448,31 @@ def profile_edit(request):
         "therapists/profile.html",
         {"section": "profile", "form": form, "profile": profile},
     )
+
+
+@therapist_only
+@require_GET
+def google_connect(request):
+    if not configured():
+        messages.error(request, "اتصال گوگل روی سرور تنظیم نشده است.")
+        return redirect("therapist_profile")
+    return redirect(authorization_url(request))
+
+
+@therapist_only
+@require_GET
+def google_callback(request):
+    if request.GET.get("error"):
+        messages.error(request, "اتصال تقویم لغو شد.")
+        return redirect("therapist_profile")
+    try:
+        read_state(request.GET.get("state"), request.user.pk)
+        email = connect_profile(request.therapist_profile, request.GET.get("code", ""), redirect_uri(request))
+    except GoogleCalendarError as exc:
+        messages.error(request, str(exc))
+        return redirect("therapist_profile")
+    messages.success(request, f"تقویم گوگل وصل شد: {email}")
+    return redirect("therapist_profile")
 
 
 @therapist_only

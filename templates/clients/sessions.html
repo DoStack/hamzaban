@@ -22,7 +22,10 @@
                 <p class="muted">{{ booking.price_label }}</p>
                 {% if booking.summary %}<p>{{ booking.summary|linebreaksbr }}</p>{% endif %}
                 {% if booking.status == "CONFIRMED" and booking.meet_url %}
-                    <a class="primary-button" href="{{ booking.meet_url }}" rel="noopener">ورود به جلسه</a>
+                    <div class="session-actions">
+                        <a class="primary-button" href="{{ booking.meet_url }}" target="_blank" rel="noopener">ورود به جلسه</a>
+                        <a class="secondary-button" href="{{ booking.calendar_url }}" target="_blank" rel="noopener">افزودن به تقویم گوگل</a>
+                    </div>
                 {% endif %}
                 {% if booking.can_cancel %}
                     <form method="post">

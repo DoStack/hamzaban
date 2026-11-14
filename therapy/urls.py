@@ -4,6 +4,8 @@ from therapy.views import (
     add_student,
     caseload,
     crm,
+    google_callback,
+    google_connect,
     hours,
     income,
     profile_edit,
@@ -24,6 +26,8 @@ urlpatterns = [
     path("tasks/", tasks, name="therapist_tasks"),
     path("income/", income, name="therapist_income"),
     path("profile/", profile_edit, name="therapist_profile"),
+    path("calendar/connect/", google_connect, name="therapist_google_connect"),
+    path("calendar/callback/", google_callback, name="therapist_google_callback"),
     path("hours/", hours, name="therapist_hours"),
     path("sessions/", therapist_sessions, name="therapist_sessions"),
 ]

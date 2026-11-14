@@ -74,7 +74,9 @@ class ClientProfileTests(TestCase):
         user.client_profile.refresh_from_db()
         self.assertEqual(user.client_profile.telegram_username, "hamzaban_user")
         self.assertEqual(user.client_profile.phone, "09120000000")
-        self.assertEqual(self.client.get(reverse("api_me")).json()["phone"], "09120000000")
+        me = self.client.get(reverse("api_me")).json()
+        self.assertEqual(me["phone"], "09120000000")
+        self.assertEqual(me["email"], "leila@example.com")
 
 
 class LogoutTests(TestCase):

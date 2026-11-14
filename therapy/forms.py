@@ -203,7 +203,7 @@ class TherapistProfileAdminForm(forms.ModelForm):
 
     class Meta:
         model = TherapistProfile
-        fields = "__all__"
+        exclude = ("google_refresh_token",)
 
     def clean_education(self):
         value = self.cleaned_data.get("education") or []

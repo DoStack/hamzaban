@@ -44,6 +44,8 @@ class TherapistProfile(models.Model):
     license_number = models.CharField("شماره مجوز", max_length=80)
     license_country = models.CharField("کشور صدور", max_length=80)
     phone = models.CharField("شماره تماس", max_length=20, blank=True)
+    google_email = models.EmailField("ایمیل گوگل", blank=True)
+    google_refresh_token = models.TextField("توکن تقویم", blank=True)
     license_file = models.FileField("فایل مجوز", upload_to="therapists/licenses/")
     specialties = models.JSONField("تخصص‌ها", default=list)
     education = models.JSONField("تحصیلات", default=list)
@@ -207,6 +209,7 @@ class Booking(models.Model):
     price = models.DecimalField("مبلغ", max_digits=12, decimal_places=2)
     currency = models.CharField("ارز", max_length=8, choices=CURRENCIES)
     meet_url = models.URLField("پیوند جلسه", blank=True)
+    google_event_id = models.CharField("رویداد گوگل", max_length=256, blank=True)
     summary = models.TextField("خلاصهٔ جلسه", blank=True, validators=[MaxLengthValidator(4000)])
     client_note = models.TextField("توضیح مراجع", blank=True, validators=[MaxLengthValidator(1000)])
     created_at = models.DateTimeField(auto_now_add=True)
@@ -222,6 +225,12 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.client_id} {self.starts_at}"
+
+    @property
+    def calendar_url(self):
+        from therapy.google_calendar import client_calendar_url
+
+        return client_calendar_url(self)
 
     @property
     def price_label(self):

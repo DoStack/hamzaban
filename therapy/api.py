@@ -33,6 +33,7 @@ from therapy.choices import (
     SPECIALTY_CHOICES,
     TIMEZONES,
 )
+from therapy.google_calendar import client_calendar_url
 from therapy.forms import (
     AddStudentForm,
     MoodForm,
@@ -229,6 +230,7 @@ def me(request):
         is_staff=user.is_staff,
         name=_person(user),
         username=user.get_username(),
+        email=user.email,
         phone=phone,
         photo=photo,
         status=status,
@@ -484,7 +486,13 @@ def _client_calendar(user, year, month):
         local = timezone.localtime(booking.starts_at)
         _year, _month, day = gregorian_to_jalali(local.year, local.month, local.day)
         by_day.setdefault(day, []).append(
-            {"time": local.strftime("%H:%M"), "status": booking.status.lower(), "label": booking.get_status_display(), "name": booking.therapist.display_name}
+            {
+                "time": local.strftime("%H:%M"),
+                "status": booking.status.lower(),
+                "label": booking.get_status_display(),
+                "name": booking.therapist.display_name,
+                "meet_url": booking.meet_url if booking.status == Booking.Status.CONFIRMED else "",
+            }
         )
     weeks = [[None if day is None else {"day": day, "items": by_day.get(day, [])} for day in week] for week in month_weeks(jy, jm)]
     prev_year, prev_month = shift_month(jy, jm, -1)
@@ -517,6 +525,7 @@ def _booking_row(booking, zone_name, now):
         "price": booking.price_label,
         "can_cancel": booking.status in {Booking.Status.AWAITING, Booking.Status.CONFIRMED} and booking.starts_at - now >= notice,
         "meet_url": booking.meet_url,
+        "calendar_url": client_calendar_url(booking),
         "summary": booking.summary,
         "note": booking.client_note,
         "receipt": None
@@ -888,7 +897,7 @@ def therapist_profile_api(request):
                 "license_number": profile.license_number,
                 "license_country": profile.license_country,
                 "phone": profile.phone,
-                "phone": profile.phone,
+                "google_email": profile.google_email,
                 "specialties": profile.specialties or [],
         "education": profile.education or [],
                 "approach": profile.approach,

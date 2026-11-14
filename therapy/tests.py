@@ -553,6 +553,7 @@ class PanelSmokeTests(TestCase):
         self.assertEqual(me["photo"], reverse("therapist_photo", args=[self.profile.slug]))
         self.assertEqual(me["status_code"], self.profile.status.lower())
         self.assertEqual(me["status"], self.profile.get_status_display())
+        self.assertEqual(me["email"], self.profile.user.email)
 
         plain = make_profile(username="nophoto", display_name="بدون عکس")
         self.client.force_login(plain.user)
@@ -771,6 +772,156 @@ class BookingGuardTests(TestCase):
             with self.assertRaises(IntegrityError):
                 form.save()
         self.assertFalse(get_user_model().objects.filter(username="fresh").exists())
+
+
+class GoogleCalendarTests(TestCase):
+    def test_connect_saves_the_gmail_and_hides_the_token(self):
+        import io
+        import json
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+
+        from django.test import override_settings
+
+        profile = make_profile(status=TherapistProfile.Status.APPROVED)
+        self.client.force_login(profile.user)
+
+        def fake_urlopen(request, timeout=20):
+            url = request.full_url
+            if url.startswith("https://oauth2.googleapis.com/token"):
+                payload = {"access_token": "access-token", "refresh_token": "refresh-token"}
+            elif "userinfo" in url:
+                payload = {"email": "Therapist@Gmail.com"}
+            elif "/calendars/primary/events" in url:
+                payload = {"items": [{"id": "primary"}]}
+            else:
+                raise AssertionError(url)
+
+            class Response:
+                def read(self):
+                    return json.dumps(payload).encode()
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    return False
+
+            return Response()
+
+        from urllib.parse import parse_qs, urlparse
+
+        with override_settings(GOOGLE_CLIENT_ID="test-client", GOOGLE_CLIENT_SECRET="test-secret"):
+            started = self.client.get(reverse("therapist_google_connect"))
+            state = parse_qs(urlparse(started.url).query)["state"][0]
+            self.assertIn("calendar.events", started.url)
+            with patch("therapy.google_calendar.urllib.request.urlopen", fake_urlopen):
+                done = self.client.get(reverse("therapist_google_callback"), {"code": "auth-code", "state": state})
+
+        self.assertRedirects(done, reverse("therapist_profile"))
+        profile.refresh_from_db()
+        self.assertEqual(profile.google_email, "therapist@gmail.com")
+        self.assertEqual(profile.google_refresh_token, "refresh-token")
+        account = self.client.get(reverse("api_therapist_profile"))
+        self.assertContains(account, "therapist@gmail.com")
+        self.assertNotContains(account, "refresh-token")
+
+        def denied(request, timeout=20):
+            if "/calendars/primary/events" not in request.full_url:
+                return fake_urlopen(request, timeout)
+            raise HTTPError(request.full_url, 403, "Forbidden", None, io.BytesIO(b'{"error":{"message":"no"}}'))
+
+        with override_settings(GOOGLE_CLIENT_ID="test-client", GOOGLE_CLIENT_SECRET="test-secret"):
+            started = self.client.get(reverse("therapist_google_connect"))
+            state = parse_qs(urlparse(started.url).query)["state"][0]
+            with patch("therapy.google_calendar.urllib.request.urlopen", denied):
+                blocked = self.client.get(reverse("therapist_google_callback"), {"code": "auth-code", "state": state})
+        self.assertRedirects(blocked, reverse("therapist_profile"))
+        profile.refresh_from_db()
+        self.assertEqual(profile.google_email, "therapist@gmail.com")
+
+    def test_accepted_session_is_written_to_the_calendar_and_cancel_removes_it(self):
+        import json
+        from unittest.mock import patch
+
+        from django.test import override_settings
+
+        profile = make_profile(status=TherapistProfile.Status.APPROVED)
+        profile.google_email = "therapist@gmail.com"
+        profile.google_refresh_token = "refresh-token"
+        profile.save(update_fields=["google_email", "google_refresh_token"])
+        client = make_client(username="calendar-client")
+        start = (timezone.now() + timedelta(days=3)).replace(minute=0, second=0, microsecond=0)
+        slot = Slot.objects.create(profile=profile, starts_at=start, ends_at=start + timedelta(minutes=30))
+        booking = book_slot(slot, client, Decimal("500000"), "CAL", note="درباره خواب")
+        calls = []
+
+        def fake_urlopen(request, timeout=20):
+            body = (request.data or b"").decode()
+            calls.append((request.get_method(), request.full_url, body))
+            if request.full_url.startswith("https://oauth2.googleapis.com/token"):
+                payload = {"access_token": "access-token"}
+            elif request.get_method() == "POST":
+                payload = {"id": "evt-1", "hangoutLink": "https://meet.google.com/abc-defg-hij"}
+            else:
+                payload = {}
+
+            class Response:
+                def read(self):
+                    return json.dumps(payload).encode()
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    return False
+
+            return Response()
+
+        with override_settings(GOOGLE_CLIENT_ID="test-client", GOOGLE_CLIENT_SECRET="test-secret"):
+            with patch("therapy.google_calendar.urllib.request.urlopen", fake_urlopen):
+                self.assertTrue(accept_receipt(booking.receipt))
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.Status.CONFIRMED)
+        self.assertEqual(booking.google_event_id, "evt-1")
+        self.assertEqual(booking.meet_url, "https://meet.google.com/abc-defg-hij")
+        created = json.loads(next(body for method, url, body in calls if method == "POST" and "events" in url))
+        self.assertEqual(created["summary"], f"جلسهٔ {profile.display_name} با {client.get_full_name()}")
+        self.assertIn(f"درمانگر: {profile.display_name}", created["description"])
+        self.assertIn(f"مراجع: {client.get_full_name()}", created["description"])
+        self.assertIn("درباره خواب", created["description"])
+        self.assertIn(client.email, created["attendees"][0]["email"])
+        self.assertEqual(created["conferenceData"]["createRequest"]["conferenceSolutionKey"]["type"], "hangoutsMeet")
+        self.assertTrue(any("conferenceDataVersion=1" in url for _method, url, _body in calls))
+
+        with override_settings(GOOGLE_CLIENT_ID="test-client", GOOGLE_CLIENT_SECRET="test-secret"):
+            with patch("therapy.google_calendar.urllib.request.urlopen", fake_urlopen):
+                cancelled = cancel_booking(booking, enforce_notice=False)
+        self.assertEqual(cancelled.google_event_id, "")
+        self.assertEqual(cancelled.meet_url, "")
+        self.assertTrue(any(method == "DELETE" and "evt-1" in url for method, url, _body in calls))
+
+    def test_client_session_offers_the_meet_link_and_a_calendar_link(self):
+        import json
+
+        profile = make_profile(status=TherapistProfile.Status.APPROVED)
+        client = make_client(username="meet-client")
+        start = (timezone.now() + timedelta(days=4)).replace(minute=0, second=0, microsecond=0)
+        slot = Slot.objects.create(profile=profile, starts_at=start, ends_at=start + timedelta(minutes=30))
+        booking = book_slot(slot, client, Decimal("500000"), "MEET")
+        booking.status = Booking.Status.CONFIRMED
+        booking.meet_url = "https://meet.google.com/abc-defg-hij"
+        booking.save(update_fields=["status", "meet_url"])
+        self.client.force_login(client)
+        local = timezone.localtime(booking.starts_at)
+        year, month, _day = gregorian_to_jalali(local.year, local.month, local.day)
+        payload = self.client.get(reverse("api_client_sessions"), {"year": year, "month": month}).json()
+        row = payload["bookings"][0]
+        self.assertEqual(row["meet_url"], booking.meet_url)
+        self.assertIn("https://calendar.google.com/calendar/render", row["calendar_url"])
+        self.assertIn("abc-defg-hij", row["calendar_url"])
+        shown = json.dumps(payload["calendar"])
+        self.assertIn(booking.meet_url, shown)
 
 
 class DatabaseStorageTests(TestCase):

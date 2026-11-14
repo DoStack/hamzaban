@@ -434,6 +434,34 @@ def book_weekly(profile, anchor, count, client, amount, reference, attachment, n
         return book_slots(slots, client, amount, reference, attachment, note)
 
 
+def _sync_calendar(booking_id, publish):
+    from therapy.google_calendar import GoogleCalendarError, drop_booking_event, publish_booking
+
+    booking = Booking.objects.select_related("therapist__user", "client").get(pk=booking_id)
+    try:
+        if publish:
+            ready = publish_booking(booking)
+        else:
+            ready = drop_booking_event(booking)
+    except GoogleCalendarError:
+        notify(
+            booking.therapist.user,
+            "تقویم گوگل به‌روز نشد",
+            "جلسه در هم‌زبان ثبت است، اما رویداد تقویم ساخته یا حذف نشد.",
+            link=_event_link("therapist_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
+        return
+    if publish and ready and booking.meet_url:
+        notify(
+            booking.client,
+            "پیوند جلسه آماده شد",
+            "ورود به جلسه از بخش جلسه‌ها باز می‌شود.",
+            link=_event_link("client_sessions", f"booking-{booking.pk}"),
+            event_key=f"booking-{booking.pk}",
+        )
+
+
 def accept_receipt(receipt):
     with transaction.atomic():
         therapist_id = Booking.objects.filter(pk=receipt.booking_id).values_list("therapist_id", flat=True).first()
@@ -475,6 +503,8 @@ def accept_receipt(receipt):
             link=_event_link("therapist_sessions", f"booking-{booking.pk}"),
             event_key=f"booking-{booking.pk}",
         )
+        booking_id = booking.pk
+    _sync_calendar(booking_id, publish=True)
     return True
 
 
@@ -545,7 +575,9 @@ def cancel_booking(booking, now=None, enforce_notice=True):
             link=_event_link("therapist_sessions", f"booking-{booking.pk}"),
             event_key=f"booking-{booking.pk}",
         )
-    return booking
+        booking_id = booking.pk
+    _sync_calendar(booking_id, publish=False)
+    return Booking.objects.get(pk=booking_id)
 
 
 def complete_booking(booking, now=None):
@@ -563,7 +595,15 @@ def refund_future_bookings(profile, now=None):
     now = now or timezone.now()
     with transaction.atomic():
         profile = TherapistProfile.objects.select_for_update().get(pk=profile.pk)
-        return _refund_locked_profile(profile, now)
+        count = _refund_locked_profile(profile, now)
+        event_ids = list(
+            profile.bookings.exclude(google_event_id="").filter(
+                status__in=[Booking.Status.CANCELLED, Booking.Status.REFUNDED]
+            ).values_list("pk", flat=True)
+        )
+    for booking_id in event_ids:
+        _sync_calendar(booking_id, publish=False)
+    return count
 
 
 def _refund_locked_profile(profile, now):

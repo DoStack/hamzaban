@@ -54,6 +54,8 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
 if not SECRET_KEY and not DEBUG:
     raise ImproperlyConfigured("Set DJANGO_SECRET_KEY when DEBUG is disabled.")
 SECRET_KEY = SECRET_KEY or "dev-only-change-me"
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 ALLOWED_HOSTS = csv_env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 CSRF_TRUSTED_ORIGINS = csv_env("DJANGO_CSRF_TRUSTED_ORIGINS")
 if os.environ.get("VERCEL"):

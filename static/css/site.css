@@ -137,8 +137,10 @@ body > main { flex: 1 0 auto; }
 }
 .avatar--icon .material-symbols-outlined { font-size: 28px; }
 .profile-identity strong, .profile-identity div > span:not(.badge) { display: block; }
-.profile-identity strong { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-identity > div { min-width: 0; }
+.profile-identity strong { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-identity div span:not(.badge) { color: var(--muted); font-size: 13px; }
+.profile-identity__email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-menu { display: grid; gap: 6px; padding-top: 14px; }
 .profile-menu__item { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 8px 10px; border-radius: 10px; color: var(--muted); text-decoration: none; }
 .profile-menu__item > .material-symbols-outlined { width: 24px; font-size: 22px; text-align: center; }
@@ -288,7 +290,7 @@ h1 { margin: 0 0 24px; font-size: clamp(24px, 3vw, 32px); line-height: 1.35; }
 .reserve-person strong { font-size: 18px; }
 .reserve-when { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
 .reserve-edit { display: inline-flex; flex: none; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; color: var(--accent-dark); font-weight: 500; cursor: pointer; white-space: nowrap; }
-.reserve-when strong { min-width: 0; }
+.reserve-when strong { min-width: 0; flex: 1; line-height: 1.6; }
 .reserve-success { display: grid; justify-items: center; gap: 10px; text-align: center; }
 .reserve-success .material-symbols-outlined { font-size: 42px; color: var(--accent-dark); }
 .reserve-success .primary-button, .reserve-success .secondary-button { width: 100%; }
@@ -374,6 +376,9 @@ a.record-card:hover { border-color: var(--accent); }
 .calendar__day small { color: var(--muted); font-size: 11px; }
 .calendar-session { display: grid; justify-items: start; gap: 2px; min-width: 0; }
 .calendar-session small { line-height: 1.35; }
+.calendar-session a { color: var(--accent-dark); font-size: 12px; font-weight: 500; text-decoration: none; }
+.session-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.session-actions .primary-button, .session-actions .secondary-button { margin-top: 0; }
 .hour-grid { display: grid; grid-template-columns: 64px repeat(7, minmax(36px, 1fr)); gap: 4px; overflow-x: auto; margin: 12px 0; }
 .hour-grid strong, .hour-grid > span { font-size: 12px; }
 .hour-grid label { display: grid; place-items: center; min-height: 28px; border-radius: 8px; background: var(--surface-soft); }

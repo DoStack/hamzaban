@@ -21,6 +21,7 @@ function usePath() {
       if (url.origin !== window.location.origin) return;
       if (link.hasAttribute("data-reload")) return;
       if (/^\/(admin|api|receipts|licenses|static|sw\.js|manifest\.webmanifest)/.test(url.pathname)) return;
+      if (url.pathname.startsWith("/therapist/calendar/")) return;
       event.preventDefault();
       go(url.pathname + url.search + url.hash);
     };
@@ -295,7 +296,7 @@ function ClientShell({ section, children }) {
   return (
     <div className="profile-shell">
       <aside className="profile-sidebar">
-        <Identity name={me.name || ""} phone={me.phone || ""} loading={waiting} />
+        <Identity name={me.name || ""} email={me.email || ""} phone={me.phone || ""} loading={waiting} />
         <nav className="profile-menu" aria-label="بخش‌های حساب">
           {items.map(([key, href, icon, label]) => (
             <a className={section === key ? "profile-menu__item is-active" : "profile-menu__item"} key={key} href={href} aria-current={section === key ? "page" : undefined}>
@@ -307,7 +308,7 @@ function ClientShell({ section, children }) {
         </nav>
       </aside>
       <section className="profile-main">
-        <Identity name={me.name || ""} phone={me.phone || ""} bar loading={waiting} />
+        <Identity name={me.name || ""} email={me.email || ""} phone={me.phone || ""} bar loading={waiting} />
         <nav className="section-links" aria-label="میانبرهای حساب">
           <a href="/therapists/">درمانگرها</a>
           <Logout compact />
@@ -344,7 +345,7 @@ function TherapistShell({ section, children }) {
   return (
     <div className="profile-shell">
       <aside className="profile-sidebar">
-        <Identity name={me.name || ""} phone={me.phone || ""} photo={me.photo} loading={waiting} />
+        <Identity name={me.name || ""} email={me.email || ""} phone={me.phone || ""} photo={me.photo} loading={waiting} />
         <nav className="profile-menu" aria-label="بخش‌های درمانگر">
           {items.map(([key, href, icon, label]) => (
             <a className={section === key ? "profile-menu__item is-active" : "profile-menu__item"} key={key} href={href} aria-current={section === key ? "page" : undefined}>
@@ -355,7 +356,7 @@ function TherapistShell({ section, children }) {
         </nav>
       </aside>
       <section className="profile-main">
-        <Identity name={me.name || ""} phone={me.phone || ""} photo={me.photo} bar loading={waiting} />
+        <Identity name={me.name || ""} email={me.email || ""} phone={me.phone || ""} photo={me.photo} bar loading={waiting} />
         <nav className="section-links" aria-label="میانبرهای درمانگر">
           <a href="/therapist/profile/">حساب کاربری</a>
           <a href="/therapist/notifications/">اعلانات</a>
@@ -377,13 +378,14 @@ function TherapistShell({ section, children }) {
   );
 }
 
-function Identity({ name, phone, photo, bar = false, loading = false }) {
+function Identity({ name, email, phone, photo, bar = false, loading = false }) {
   return (
     <div className={bar ? "profile-identity profile-identity--bar" : "profile-identity"}>
       {photo ? <img className="avatar" src={photo} alt="" /> : <span className="avatar avatar--icon"><Icon name="person" /></span>}
       <div>
         {loading ? <Bone className="bone--title" /> : <strong>{name}</strong>}
-        {loading ? <Bone className="bone--line bone--short" /> : <span dir="ltr">{phone || "ثبت نشده"}</span>}
+        {loading ? <Bone className="bone--line bone--short" /> : <span className="profile-identity__email" dir="ltr" title={email}>{email || "ایمیل ثبت نشده"}</span>}
+        {loading || !phone ? null : <span dir="ltr">{phone}</span>}
       </div>
       <ThemeButton />
     </div>
@@ -536,6 +538,10 @@ function meetingSummary(items) {
   return items[0]?.label || "";
 }
 
+function weeklySummary(slot, count) {
+  return `${slot.name} ها ساعت ${faCount(slot.time)} (${faCount(count)} جلسه).`;
+}
+
 function ReserveDialog({ open, onClose, data, slug, initialSlotId = "", mode = "slots" }) {
   const dialog = useRef(null);
   const appliedSlot = useRef("");
@@ -616,10 +622,10 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "", mode = "
   const week = weeks[weekIndex];
   const selected = week?.days.find((day) => day.key === dayKey);
   const chosen = mode === "weekly" ? (plan?.meetings || []).filter((item) => item.available) : picks;
-  const summary = meetingSummary(chosen);
+  const summary = mode === "weekly" && weeklySlot ? weeklySummary(weeklySlot, chosen.length) : meetingSummary(chosen);
   function choose(item, day) {
     if (data?.is_therapist) return;
-    const nextSlot = { id: item.id, time: item.time, label: `${day.label}، ساعت ${item.time}` };
+    const nextSlot = { id: item.id, time: item.time, name: day.name, label: `${day.label}، ساعت ${item.time}` };
     if (mode === "weekly") {
       setWeeklySlot(nextSlot);
       setPlan(null);
@@ -1316,6 +1322,7 @@ function ClientSessions() {
                     <span className="calendar-session" key={`${item.time}-${item.name}`}>
                       <small>{item.name}</small>
                       <Badge status={item.status}>{item.time}</Badge>
+                      {item.meet_url ? <a href={item.meet_url} target="_blank" rel="noopener">ورود</a> : null}
                     </span>
                   ))}
                 </div>
@@ -1333,6 +1340,12 @@ function ClientSessions() {
               <Badge status={item.status}>{item.status_label}</Badge>
             </div>
             <p>{item.date}، ساعت {item.time}</p>
+            {item.meet_url || item.calendar_url ? (
+              <div className="session-actions">
+                {item.meet_url ? <a className="primary-button" href={item.meet_url} target="_blank" rel="noopener">ورود به جلسه</a> : null}
+                {item.calendar_url ? <a className="secondary-button" href={item.calendar_url} target="_blank" rel="noopener">افزودن به تقویم گوگل</a> : null}
+              </div>
+            ) : null}
             {item.can_cancel ? <button className="danger-button" type="button" onClick={() => cancel(item.id)}>لغو جلسه</button> : null}
           </article>
         ))}
@@ -1645,6 +1658,8 @@ function TherapistProfile() {
       {loading && !profile ? <FormSkeleton rows={6} /> : null}
       {profile ? <p><Badge status={profile.status}>{profile.status_label}</Badge></p> : null}
       {profile?.rejection ? <p className="form-error">علت رد: {profile.rejection}</p> : null}
+      {profile?.google_email ? <p>تقویم گوگل وصل است: {profile.google_email}</p> : null}
+      {profile && !profile.google_email ? <p><a className="secondary-button" href="/therapist/calendar/connect/" data-reload="true">اتصال تقویم گوگل</a></p> : null}
       {profile ? (
         <form className="stack-form" onSubmit={submit}>
           <label htmlFor="display_name">نام نمایشی</label>
