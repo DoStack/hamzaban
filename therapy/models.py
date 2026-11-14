@@ -297,6 +297,7 @@ class ClientProfile(models.Model):
         related_name="client_profile",
     )
     telegram_username = models.CharField("نام کاربری تلگرام", max_length=32, blank=True)
+    phone = models.CharField("شماره تماس", max_length=20, blank=True)
 
     class Meta:
         verbose_name = "پروفایل مراجع"

@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
@@ -7,6 +9,7 @@ THERAPIST_GROUP_NAME = "therapist"
 
 class ClientRegistrationForm(UserCreationForm):
     first_name = forms.CharField(label="نام", max_length=150)
+    phone = forms.CharField(label="شماره تماس", max_length=20, required=False)
     email = forms.EmailField(
         label="ایمیل",
         error_messages={"invalid": "یک ایمیل معتبر وارد کنید."},
@@ -31,13 +34,21 @@ class ClientRegistrationForm(UserCreationForm):
         self.fields["password1"].widget.attrs["autocomplete"] = "new-password"
         self.fields["password2"].widget.attrs["autocomplete"] = "new-password"
         self.fields["first_name"].widget.attrs["autofocus"] = True
-        self.order_fields(["first_name", "username", "email", "password1", "password2"])
+        self.fields["phone"].widget.attrs["autocomplete"] = "tel"
+        self.fields["phone"].widget.attrs["inputmode"] = "tel"
+        self.order_fields(["first_name", "username", "phone", "email", "password1", "password2"])
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
         if User.objects.filter(email__iexact=email).exists():
             raise forms.ValidationError("این ایمیل قبلاً ثبت شده است.")
         return email
+
+    def clean_phone(self):
+        value = (self.cleaned_data.get("phone") or "").strip()
+        if value and not re.fullmatch(r"[0-9+\- ]{8,20}", value):
+            raise forms.ValidationError("شماره تماس معتبر نیست.")
+        return value
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -48,5 +59,8 @@ class ClientRegistrationForm(UserCreationForm):
             user.save()
             from therapy.models import ClientProfile
 
-            ClientProfile.objects.get_or_create(user=user)
+            ClientProfile.objects.update_or_create(
+                user=user,
+                defaults={"phone": self.cleaned_data.get("phone", "")},
+            )
         return user

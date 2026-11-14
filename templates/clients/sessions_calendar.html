@@ -14,8 +14,10 @@
                     <div class="calendar__day" role="gridcell">
                         <strong>{{ cell.day }}</strong>
                         {% for item in cell.items %}
-                            <span class="badge badge--{{ item.status }}">{{ item.time }} {{ item.label }}</span>
-                            <small>{{ item.name }}</small>
+                            <span class="calendar-session">
+                                <small>{{ item.name }}</small>
+                                <span class="badge badge--{{ item.status }}">{{ item.time }}</span>
+                            </span>
                         {% endfor %}
                     </div>
                 {% else %}

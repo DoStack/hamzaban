@@ -184,6 +184,34 @@ class AdminTherapistWizardForm(TherapistRegistrationForm):
         return user
 
 
+class TherapistProfileAdminForm(forms.ModelForm):
+    """Chip choices for languages and education on the therapist edit page."""
+
+    languages = forms.MultipleChoiceField(
+        label="زبان‌ها",
+        choices=LANGUAGE_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "choice-grid"}),
+    )
+    education = forms.MultipleChoiceField(
+        label="تحصیلات",
+        choices=EDUCATION_CHOICES,
+        required=False,
+        help_text="حداکثر ۵ مورد.",
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "choice-grid"}),
+    )
+
+    class Meta:
+        model = TherapistProfile
+        fields = "__all__"
+
+    def clean_education(self):
+        value = self.cleaned_data.get("education") or []
+        if len(value) > 5:
+            raise forms.ValidationError("حداکثر ۵ مورد تحصیلی مجاز است.")
+        return value
+
+
 class TherapistProfileForm(SpecialtyMixin, forms.ModelForm):
     languages = forms.MultipleChoiceField(
         label="زبان‌ها",

@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Sum
 from django.urls import reverse
@@ -22,6 +25,8 @@ from therapy.models import (
     Task,
     TherapistProfile,
 )
+
+WEEK_COUNTS = (2, 4, 6, 8, 10, 12)
 
 DAILY_CARDS = (
     ("daily", "کارت امروز", "یک کار کوچک را تا آخر انجام بده و تمام شدنش را برای خودت علامت بزن.", "حس تمام کردن"),
@@ -88,6 +93,19 @@ def notice_cutoff(profile, now=None):
     return now + timedelta(hours=profile.min_notice_hours)
 
 
+def shown_start(profile, starts_at):
+    """Clock time printed for the client, read on the site clock."""
+    site = ZoneInfo(timezone.get_current_timezone_name())
+    shown = timezone.localtime(starts_at, ZoneInfo(profile.timezone))
+    return shown.replace(tzinfo=site)
+
+
+def accepts_notice(profile, starts_at, now=None):
+    """A time is bookable only after this therapist's notice on the site clock."""
+    cutoff = notice_cutoff(profile, now)
+    return starts_at >= cutoff and shown_start(profile, starts_at) >= cutoff
+
+
 def shown_on_site(profile, now=None):
     now = now or timezone.now()
     if profile.status != TherapistProfile.Status.APPROVED:
@@ -139,6 +157,8 @@ def open_slots_by_day(profile):
     days = []
     index = {}
     for slot in slots:
+        if not accepts_notice(profile, slot.starts_at):
+            continue
         local = timezone.localtime(slot.starts_at, zone)
         key = local.date()
         if key not in index:
@@ -155,15 +175,22 @@ def open_slots_by_day(profile):
     return days
 
 
-def booking_weeks(profile):
-    """Weeks of bookable days, Saturday through Friday, in the therapist's zone."""
+def booking_weeks(profile, now=None):
+    """Weeks of bookable days, Saturday through Friday, in the therapist's zone.
+
+    A time today is included when it is at least this therapist's minimum notice away.
+    """
+    now = now or timezone.now()
     zone = ZoneInfo(profile.timezone)
-    today = timezone.localtime(timezone.now(), zone).date()
+    today = timezone.localtime(now, zone).date()
+    tomorrow = today + timedelta(days=1)
     horizon_end = today + timedelta(days=profile.horizon_days)
     week_start = today - timedelta(days=(today.weekday() - 5) % 7)
     grouped = {}
-    slots = profile.slots.filter(status=Slot.Status.OPEN, starts_at__gte=notice_cutoff(profile)).order_by("starts_at")
+    slots = profile.slots.filter(status=Slot.Status.OPEN, starts_at__gte=notice_cutoff(profile, now)).order_by("starts_at")
     for slot in slots:
+        if not accepts_notice(profile, slot.starts_at, now):
+            continue
         local = timezone.localtime(slot.starts_at, zone)
         grouped.setdefault(local.date(), []).append({"id": slot.pk, "time": local.strftime("%H:%M")})
     weeks = []
@@ -180,6 +207,7 @@ def booking_weeks(profile):
                     "number": number,
                     "month": MONTHS[month],
                     "label": f"{DAY_LABELS[day.weekday()]} {number} {MONTHS[month]}",
+                    "badge": "امروز" if day == today else "فردا" if day == tomorrow else "",
                     "slots": grouped.get(day, []) if today <= day <= horizon_end else [],
                 }
             )
@@ -205,7 +233,7 @@ def book_slot(slot, client, amount, reference, attachment=None, note=""):
             .filter(pk=slot.pk, profile=profile, status=Slot.Status.OPEN, starts_at__gte=cutoff)
             .first()
         )
-        if locked is None:
+        if locked is None or not accepts_notice(profile, locked.starts_at):
             raise SlotTaken
         gap = timedelta(minutes=profile.gap_minutes)
         overlaps = profile.slots.filter(
@@ -252,6 +280,158 @@ def book_slot(slot, client, amount, reference, attachment=None, note=""):
             event_key=f"booking-{booking.pk}",
         )
     return booking
+
+
+def book_slots(slots, client, amount, reference, attachment=None, note=""):
+    """Hold every selected time and store one receipt share for each session."""
+    ordered = sorted(slots, key=lambda item: (item.starts_at, item.pk))
+    if len(ordered) < 2:
+        raise SlotTaken("حداقل دو وقت جدا انتخاب کنید.")
+    file_bytes = b""
+    file_name = ""
+    if attachment:
+        file_bytes = attachment.read()
+        file_name = Path(attachment.name).name
+    amount = Decimal(amount)
+    with transaction.atomic():
+        profile = TherapistProfile.objects.select_for_update().get(pk=ordered[0].profile_id)
+        if any(item.profile_id != profile.pk for item in ordered) or profile.user_id == client.id:
+            raise SlotTaken("رزرو از حساب درمانگر انجام نمی‌شود.")
+        if profile.status != TherapistProfile.Status.APPROVED:
+            raise SlotTaken("این وقت دیگر آزاد نیست.")
+        locked = []
+        for item in sorted(ordered, key=lambda row: row.pk):
+            row = (
+                Slot.objects.select_for_update()
+                .filter(pk=item.pk, profile=profile, status=Slot.Status.OPEN, starts_at__gte=notice_cutoff(profile))
+                .first()
+            )
+            if row is None or not accepts_notice(profile, row.starts_at):
+                raise SlotTaken("یکی از وقت‌ها دیگر آزاد نیست.")
+            locked.append(row)
+        locked.sort(key=lambda row: row.starts_at)
+        batch = {row.pk for row in locked}
+        gap = timedelta(minutes=profile.gap_minutes)
+        for row in locked:
+            overlaps = profile.slots.filter(
+                status__in=[Slot.Status.HELD, Slot.Status.BOOKED],
+                starts_at__lt=row.ends_at + gap,
+                ends_at__gt=row.starts_at - gap,
+            ).exclude(pk__in=batch)
+            if overlaps.exists():
+                raise SlotTaken("یکی از وقت‌ها به جلسهٔ دیگری خیلی نزدیک است.")
+        for row in locked:
+            if Slot.objects.filter(pk=row.pk, status=Slot.Status.OPEN).update(status=Slot.Status.HELD) != 1:
+                raise SlotTaken("یکی از وقت‌ها همین حالا گرفته شد.")
+        share = (amount / len(locked)).quantize(Decimal("0.01"))
+        shares = [share] * (len(locked) - 1)
+        shares.append(amount - share * (len(locked) - 1))
+        note = (note or "")[:1000]
+        bookings = []
+        for row, part in zip(locked, shares):
+            booking = Booking.objects.create(
+                client=client,
+                therapist=profile,
+                slot=row,
+                starts_at=row.starts_at,
+                ends_at=row.ends_at,
+                status=Booking.Status.AWAITING,
+                price=profile.session_price,
+                currency=profile.currency,
+                client_note=note,
+            )
+            receipt = Receipt(booking=booking, amount=part, reference=reference, status=Receipt.Status.SUBMITTED)
+            if file_bytes:
+                receipt.attachment.save(file_name, ContentFile(file_bytes), save=False)
+            receipt.save()
+            bookings.append(booking)
+        ensure_link(profile, client)
+        count = len(bookings)
+        when = "، ".join(slot_when(item.slot) for item in bookings[:3])
+        notify(
+            client,
+            "رسید ثبت شد",
+            f"رسید {count} جلسه ثبت شد. جلسه‌ها پس از تأیید درمانگر قطعی می‌شوند.",
+            link=_event_link("client_payments", f"receipt-{bookings[0].receipt.pk}"),
+            event_key=f"booking-{bookings[0].pk}",
+        )
+        notify(
+            profile.user,
+            "رسید جدید",
+            f"یک رسید برای {count} جلسه ثبت شد: {when}",
+            link=_event_link("therapist_sessions", f"booking-{bookings[0].pk}"),
+            event_key=f"booking-{bookings[0].pk}",
+        )
+    return bookings
+
+
+def weekly_plan(profile, anchor, count, now=None):
+    """Same clock time for the next count weeks, including weeks that are not free."""
+    now = now or timezone.now()
+    count = int(count)
+    if count not in WEEK_COUNTS:
+        raise ValueError(count)
+    zone = ZoneInfo(profile.timezone)
+    local = timezone.localtime(anchor.starts_at, zone)
+    clock = local.time().replace(second=0, microsecond=0)
+    closed_days = set()
+    closed_hours = set()
+    for closure in profile.closures.all():
+        if closure.start is None:
+            closed_days.add(closure.date)
+        else:
+            closed_hours.add((closure.date, closure.start.replace(second=0, microsecond=0)))
+    has_cell = profile.cells.filter(weekday=local.weekday(), start=clock).exists()
+    meetings = []
+    for index in range(count):
+        day = local.date() + timedelta(weeks=index)
+        starts = datetime.combine(day, clock, tzinfo=zone)
+        ends = starts + timedelta(minutes=SLOT_MINUTES)
+        existing = profile.slots.filter(starts_at=starts).first()
+        if existing is not None and existing.status != Slot.Status.OPEN:
+            available, reason = False, "این هفته گرفته شده"
+        elif day in closed_days or (day, clock) in closed_hours:
+            available, reason = False, "این هفته بسته است"
+        elif not accepts_notice(profile, starts, now):
+            available, reason = False, "زودتر از حداقل اطلاع قبلی است"
+        elif existing is None and not has_cell:
+            available, reason = False, "این ساعت در هفته‌های بعد نیست"
+        else:
+            available, reason = True, ""
+        meetings.append(
+            {
+                "label": f"{format_jalali(starts)}، ساعت {clock.strftime('%H:%M')}",
+                "time": clock.strftime("%H:%M"),
+                "available": available,
+                "reason": reason,
+                "starts": starts,
+                "ends": ends,
+                "slot": existing if existing is not None and existing.status == Slot.Status.OPEN else None,
+            }
+        )
+    return meetings
+
+
+def book_weekly(profile, anchor, count, client, amount, reference, attachment, note, expected):
+    with transaction.atomic():
+        profile = TherapistProfile.objects.select_for_update().get(pk=profile.pk)
+        anchor = profile.slots.get(pk=anchor.pk)
+        open_rows = [row for row in weekly_plan(profile, anchor, count) if row["available"]]
+        if len(open_rows) < 2 or len(open_rows) != int(expected):
+            raise SlotTaken("تعداد جلسه‌های آزاد عوض شد. فهرست را دوباره ببینید.")
+        slots = []
+        for row in open_rows:
+            slot = row["slot"]
+            if slot is None:
+                slot, _created = Slot.objects.get_or_create(
+                    profile=profile,
+                    starts_at=row["starts"],
+                    defaults={"ends_at": row["ends"], "status": Slot.Status.OPEN},
+                )
+            if slot.status != Slot.Status.OPEN:
+                raise SlotTaken("یکی از هفته‌ها همین حالا گرفته شد.")
+            slots.append(slot)
+        return book_slots(slots, client, amount, reference, attachment, note)
 
 
 def accept_receipt(receipt):

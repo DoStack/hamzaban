@@ -41,7 +41,11 @@ from therapy.services import (
     CancelError,
     SlotTaken,
     accept_receipt,
+    book_slots,
     book_slot,
+    book_weekly,
+    booking_weeks,
+    weekly_plan,
     cancel_booking,
     public_therapists,
     rebuild_slots,
@@ -139,6 +143,69 @@ class SlotTests(TestCase):
         self.assertNotIn(datetime(2026, 11, 23, 11, 0, tzinfo=zone), starts)
         self.assertIn(datetime(2026, 11, 23, 10, 0, tzinfo=zone), set(profile.slots.values_list("starts_at", flat=True)))
         self.assertIn(datetime(2026, 11, 30, 10, 0, tzinfo=zone), starts)
+
+    def test_same_day_slot_follows_that_therapist_notice(self):
+        zone = ZoneInfo("Asia/Tehran")
+        now = datetime(2026, 11, 14, 9, 0, tzinfo=zone)
+        profile = make_profile(
+            username="same-day",
+            display_name="همان روز",
+            status=TherapistProfile.Status.APPROVED,
+            with_hours=False,
+        )
+        profile.min_notice_hours = 2
+        profile.timezone = "Asia/Tehran"
+        profile.save(update_fields=["min_notice_hours", "timezone"])
+        AvailabilityCell.objects.create(profile=profile, weekday=5, start=time(10, 0))
+        AvailabilityCell.objects.create(profile=profile, weekday=5, start=time(12, 0))
+        rebuild_slots(profile, now=now)
+
+        today = next(day for week in booking_weeks(profile, now=now) for day in week["days"] if day["badge"] == "امروز")
+        times = [slot["time"] for slot in today["slots"]]
+        self.assertEqual(today["name"], "شنبه")
+        self.assertNotIn("10:00", times)
+        self.assertIn("12:00", times)
+
+        profile.min_notice_hours = 6
+        profile.save(update_fields=["min_notice_hours"])
+        later = next(day for week in booking_weeks(profile, now=now) for day in week["days"] if day["badge"] == "امروز")
+        self.assertEqual([slot["time"] for slot in later["slots"]], [])
+
+    def test_morning_clock_is_closed_once_notice_has_passed_it(self):
+        toronto = ZoneInfo("America/Toronto")
+        now = datetime(2026, 11, 14, 12, 10, tzinfo=ZoneInfo("Asia/Tehran"))
+        profile = make_profile(
+            username="notice-clock",
+            display_name="ساعت اطلاع",
+            status=TherapistProfile.Status.APPROVED,
+            with_hours=False,
+        )
+        profile.min_notice_hours = 2
+        profile.timezone = "America/Toronto"
+        profile.save(update_fields=["min_notice_hours", "timezone"])
+        for clock in (time(8, 30), time(9, 30), time(10, 30), time(11, 30), time(15, 0)):
+            start = datetime(2026, 11, 14, clock.hour, clock.minute, tzinfo=toronto)
+            Slot.objects.create(profile=profile, starts_at=start, ends_at=start + timedelta(minutes=30), status=Slot.Status.OPEN)
+        tomorrow = datetime(2026, 11, 15, 8, 30, tzinfo=toronto)
+        Slot.objects.create(
+            profile=profile,
+            starts_at=tomorrow,
+            ends_at=tomorrow + timedelta(minutes=30),
+            status=Slot.Status.OPEN,
+        )
+
+        days = {day["badge"]: day for week in booking_weeks(profile, now=now) for day in week["days"] if day["badge"]}
+        self.assertEqual([slot["time"] for slot in days["امروز"]["slots"]], ["15:00"])
+        self.assertIn("08:30", [slot["time"] for slot in days["فردا"]["slots"]])
+        early = profile.slots.get(starts_at=datetime(2026, 11, 14, 8, 30, tzinfo=toronto))
+        with self.assertRaises(SlotTaken):
+            book_slot(early, make_client(username="notice-client"), Decimal("500000"), "EARLY")
+
+    def test_booking_week_marks_today_and_tomorrow(self):
+        profile = make_profile(username="days", status=TherapistProfile.Status.APPROVED, with_hours=True)
+        badges = [day["badge"] for week in booking_weeks(profile) for day in week["days"]]
+        self.assertEqual(badges.count("امروز"), 1)
+        self.assertEqual(badges.count("فردا"), 1)
 
     def test_only_approved_profiles_with_an_open_slot_are_public(self):
         pending = make_profile(
@@ -619,6 +686,63 @@ class BookingGuardTests(TestCase):
         )
         with self.assertRaises(SlotTaken):
             book_slot(leftover, client, Decimal("500000"), "AFTER")
+
+    def test_many_slots_share_one_payment_and_a_taken_slot_rolls_back(self):
+        profile = make_profile(username="multi-therapist", status=TherapistProfile.Status.APPROVED, with_hours=False)
+        zone = ZoneInfo("Asia/Tehran")
+        day = timezone.localdate() + timedelta(days=4)
+        slots = []
+        for offset in range(3):
+            start = datetime.combine(day + timedelta(days=offset), time(10, 0), tzinfo=zone)
+            slots.append(Slot.objects.create(profile=profile, starts_at=start, ends_at=start + timedelta(minutes=30)))
+        client = make_client(username="multi-client")
+        bookings = book_slots(slots[:2], client, Decimal("1000000"), "MULTI")
+        self.assertEqual(len(bookings), 2)
+        self.assertEqual(sum(item.receipt.amount for item in bookings), Decimal("1000000"))
+        self.assertEqual({item.receipt.reference for item in bookings}, {"MULTI"})
+        for item in bookings:
+            item.slot.refresh_from_db()
+            self.assertEqual(item.slot.status, Slot.Status.HELD)
+        slots[2].status = Slot.Status.HELD
+        slots[2].save(update_fields=["status"])
+        spare_day = day + timedelta(days=5)
+        spare = Slot.objects.create(
+            profile=profile,
+            starts_at=datetime.combine(spare_day, time(10, 0), tzinfo=zone),
+            ends_at=datetime.combine(spare_day, time(10, 30), tzinfo=zone),
+        )
+        with self.assertRaises(SlotTaken):
+            book_slots([slots[2], spare], client, Decimal("100"), "NOPE")
+        spare.refresh_from_db()
+        self.assertEqual(spare.status, Slot.Status.OPEN)
+
+    def test_weekly_reserve_skips_a_closed_week(self):
+        profile = make_profile(username="weekly-therapist", status=TherapistProfile.Status.APPROVED, with_hours=False)
+        profile.min_notice_hours = 2
+        profile.timezone = "Asia/Tehran"
+        profile.save(update_fields=["min_notice_hours", "timezone"])
+        zone = ZoneInfo("Asia/Tehran")
+        day = timezone.localdate() + timedelta(days=3)
+        while day.weekday() != 5:
+            day += timedelta(days=1)
+        start = datetime.combine(day, time(12, 0), tzinfo=zone)
+        anchor = Slot.objects.create(profile=profile, starts_at=start, ends_at=start + timedelta(minutes=30))
+        AvailabilityCell.objects.create(profile=profile, weekday=5, start=time(12, 0))
+        AvailabilityClosure.objects.create(profile=profile, date=day + timedelta(weeks=1))
+        plan = weekly_plan(profile, anchor, 4)
+        self.assertEqual([item["available"] for item in plan], [True, False, True, True])
+        client = make_client(username="weekly-client")
+        self.client.force_login(client)
+        rejected = self.client.get(reverse("api_book_weekly", args=[profile.slug, anchor.pk]) + "?weeks=3")
+        self.assertEqual(rejected.status_code, 400)
+        preview = self.client.get(reverse("api_book_weekly", args=[profile.slug, anchor.pk]) + "?weeks=4")
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview.json()["available"], 3)
+        booked = book_weekly(profile, anchor, 4, client, Decimal("1000000"), "WEEK", None, "", expected=3)
+        self.assertEqual(len(booked), 3)
+        self.assertFalse(profile.slots.filter(starts_at=datetime.combine(day + timedelta(weeks=1), time(12, 0), tzinfo=zone)).exists())
+        later = profile.slots.get(starts_at=datetime.combine(day + timedelta(weeks=2), time(12, 0), tzinfo=zone))
+        self.assertEqual(later.status, Slot.Status.HELD)
 
     def test_existing_account_is_not_attached_to_a_therapist(self):
         profile = make_profile(status=TherapistProfile.Status.APPROVED)

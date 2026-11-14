@@ -164,6 +164,35 @@ body * {
 }
 .wizard-field--chips .choice-grid label:has(input:checked) { background: #3aa58c; border-color: #2f8b75; color: #fff; }
 .wizard-field--chips .choice-grid label:focus-within { outline: 2px solid #3aa58c; outline-offset: 2px; }
+body.change-form div.choice-grid { display: flex; flex-flow: row wrap; gap: 6px; margin: 0; padding: 0; }
+body.change-form div.choice-grid > div { width: auto; margin: 0; }
+body.change-form div.choice-grid label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 4px 12px;
+    border: 1px solid #d9dfe7;
+    border-radius: 999px;
+    background: #f4f7f6;
+    color: #252b32;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 400;
+}
+body.change-form div.choice-grid input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+body.change-form div.choice-grid label:has(input:checked) { background: #3aa58c; border-color: #2f8b75; color: #fff; }
+body.change-form div.choice-grid label:focus-within { outline: 2px solid #3aa58c; outline-offset: 2px; }
 @media (max-width: 720px) {
     .wizard-step--practice { grid-template-columns: 1fr; }
 }
@@ -194,9 +223,13 @@ html.dark .wizard-field--chips > .wizard-help,
 html.scheme-dark .wizard-field--chips > label,
 html.scheme-dark .wizard-field--chips > .wizard-help { background: transparent; border: 0; color: #f0f6f4; }
 html.dark .wizard-field--chips .choice-grid label,
-html.scheme-dark .wizard-field--chips .choice-grid label { background: #1c2d30; border-color: #3a5051; color: #f0f6f4; }
+html.scheme-dark .wizard-field--chips .choice-grid label,
+html.dark body.change-form div.choice-grid label,
+html.scheme-dark body.change-form div.choice-grid label { background: #1c2d30; border-color: #3a5051; color: #f0f6f4; }
 html.dark .wizard-field--chips .choice-grid label:has(input:checked),
-html.scheme-dark .wizard-field--chips .choice-grid label:has(input:checked) { background: #3aa58c; border-color: #3aa58c; color: #fff; }
+html.scheme-dark .wizard-field--chips .choice-grid label:has(input:checked),
+html.dark body.change-form div.choice-grid label:has(input:checked),
+html.scheme-dark body.change-form div.choice-grid label:has(input:checked) { background: #3aa58c; border-color: #3aa58c; color: #fff; }
 html.dark .wizard-help,
 html.scheme-dark .wizard-help { color: #b3c5c0; }
 html.dark .wizard-errors,

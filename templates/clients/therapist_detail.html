@@ -6,7 +6,13 @@
 {% block content %}
 <article class="landing-section" aria-labelledby="therapist-name">
     <div class="landing-wrap therapist-detail">
-        <p class="eyebrow"><a href="{% url 'therapist_list' %}">درمانگرها</a></p>
+        <nav class="breadcrumb" aria-label="مسیر">
+            <ol>
+                <li><a href="{% url 'home' %}">خانه</a></li>
+                <li><a href="{% url 'therapist_list' %}">درمانگرها</a></li>
+                <li><span aria-current="page">{{ therapist.display_name }}</span></li>
+            </ol>
+        </nav>
         <section class="profile-box">
             <h2>اطلاعات درمانگر</h2>
             <header class="therapist-detail__header">

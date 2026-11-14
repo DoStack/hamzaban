@@ -52,6 +52,7 @@ from therapy.services import (
     SlotTaken,
     accept_receipt,
     add_closure,
+    accepts_notice,
     book_slot,
     cancel_booking,
     complete_booking,
@@ -161,6 +162,8 @@ def book(request, slug, slot_id):
             status=Slot.Status.OPEN,
             starts_at__gte=timezone.now() + timedelta(hours=profile.min_notice_hours),
         )
+        if not accepts_notice(profile, slot.starts_at):
+            raise Http404("این وقت دیگر آزاد نیست.")
         if request.user.id == profile.user_id or request.user.groups.filter(name="therapist").exists():
             messages.error(request, "رزرو از حساب درمانگر انجام نمی‌شود.")
             return redirect("therapist_detail", slug=slug)

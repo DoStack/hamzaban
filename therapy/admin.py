@@ -25,7 +25,7 @@ from therapy.models import (
 )
 from therapy.calendar import grid_starts
 from therapy.choices import DAY_LABELS, DISPLAY_DAYS
-from therapy.forms import AdminTherapistWizardForm, chosen_week_cells
+from therapy.forms import AdminTherapistWizardForm, TherapistProfileAdminForm, chosen_week_cells
 from therapy.services import replace_cells, review_deadline, review_is_late, shown_on_site
 
 WIZARD_STEPS = (
@@ -112,6 +112,7 @@ class TherapistProfileAdmin(ModelAdmin):
     search_fields = ("display_name", "license_number", "user__username", "user__email")
     readonly_fields = ("reviewed_at", "created_at", "review_state", "license_link")
     actions = ("approve_selected", "suspend_selected")
+    form = TherapistProfileAdminForm
     change_list_template = "admin/therapy/therapistprofile/change_list.html"
     change_form_template = "admin/therapy/therapistprofile/change_form.html"
 
@@ -385,6 +386,7 @@ class ClientRecordAdmin(ModelAdmin):
 class ClientProfileAdmin(ModelAdmin):
     list_display = (
         "user",
+        "phone",
         "telegram_username",
         "booking_count",
         "receipt_count",
@@ -394,7 +396,7 @@ class ClientProfileAdmin(ModelAdmin):
         "mood_count",
         "task_count",
     )
-    search_fields = ("user__username", "telegram_username")
+    search_fields = ("user__username", "phone", "telegram_username")
     raw_id_fields = ("user",)
 
     def get_queryset(self, request):

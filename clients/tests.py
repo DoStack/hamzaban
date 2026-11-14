@@ -67,12 +67,14 @@ class ClientProfileTests(TestCase):
         self.assertContains(page, "app-shell")
         account = self.client.post(
             reverse("api_client_account"),
-            data='{"first_name": "لیلا", "email": "leila@example.com", "telegram_username": "@hamzaban_user"}',
+            data='{"first_name": "لیلا", "email": "leila@example.com", "phone": "09120000000", "telegram_username": "@hamzaban_user"}',
             content_type="application/json",
         )
         self.assertEqual(account.status_code, 200)
         user.client_profile.refresh_from_db()
         self.assertEqual(user.client_profile.telegram_username, "hamzaban_user")
+        self.assertEqual(user.client_profile.phone, "09120000000")
+        self.assertEqual(self.client.get(reverse("api_me")).json()["phone"], "09120000000")
 
 
 class LogoutTests(TestCase):
@@ -106,6 +108,7 @@ class RegistrationTests(TestCase):
             {
                 "first_name": "لیلا",
                 "username": "leila",
+                "phone": "09121111111",
                 "email": "leila@example.com",
                 "password1": "Safe-pass-48",
                 "password2": "Safe-pass-48",
@@ -116,10 +119,13 @@ class RegistrationTests(TestCase):
         user = get_user_model().objects.get(username="leila")
         self.assertEqual(user.first_name, "لیلا")
         self.assertEqual(user.email, "leila@example.com")
+        self.assertEqual(user.client_profile.phone, "09121111111")
         self.assertFalse(user.is_staff)
         self.assertFalse(user.is_superuser)
         self.assertTrue(user.check_password("Safe-pass-48"))
-        self.assertEqual(self.client.get(reverse("api_me")).json()["name"], "لیلا")
+        me = self.client.get(reverse("api_me")).json()
+        self.assertEqual(me["name"], "لیلا")
+        self.assertEqual(me["phone"], "09121111111")
 
     def test_duplicate_username_or_email_is_rejected(self):
         get_user_model().objects.create_user(
@@ -610,6 +616,20 @@ class AdminTableTests(TestCase):
         self.assertContains(filtered, "1 نتیجه")
         self.assertContains(filtered, profile.display_name)
         self.assertNotContains(filtered, f">{other.display_name}</td>")
+
+    def test_therapist_change_page_uses_choice_chips(self):
+        admin = get_user_model().objects.create_superuser(
+            username="root",
+            email="root@example.com",
+            password="Safe-pass-48",
+        )
+        self.client.force_login(admin)
+        profile = make_profile(username="chip-therapist", display_name="درمانگر انتخاب")
+        page = self.client.get(reverse("admin:therapy_therapistprofile_change", args=[profile.pk]))
+        self.assertContains(page, 'id="id_languages" class="choice-grid"')
+        self.assertContains(page, 'id="id_education" class="choice-grid"')
+        self.assertContains(page, "فارسی")
+        self.assertContains(page, "کارشناسی")
 
     def test_therapist_wizard_activates_a_public_profile(self):
         from therapy.services import public_therapists

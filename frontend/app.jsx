@@ -69,7 +69,7 @@ function Bone({ className = "" }) {
 
 function CardSkeleton({ lines = 2 }) {
   return (
-    <article className="record-card" aria-hidden="true">
+    <article className="record-card skeleton" aria-hidden="true">
       <div className="record-card__row">
         <Bone className="bone--title" />
         <Bone className="bone--chip" />
@@ -91,7 +91,7 @@ function DirectorySkeleton() {
   return (
     <div className="therapist-grid" role="status" aria-label="در حال بارگذاری">
       {Array.from({ length: 4 }, (_, index) => (
-        <article className="therapist-card" key={index} aria-hidden="true">
+        <article className="therapist-card skeleton" key={index} aria-hidden="true">
           <Bone className="bone--avatar" />
           <div>
             <Bone className="bone--title" />
@@ -106,28 +106,32 @@ function DirectorySkeleton() {
 }
 
 function DetailSkeleton() {
+  const boxes = [5, 1, 2, 2, 3, 3];
   return (
     <div className="therapist-layout" role="status" aria-label="در حال بارگذاری">
       <div className="therapist-detail">
-        <header className="therapist-detail__header">
-          <Bone className="bone--avatar bone--avatar-lg" />
-          <div>
+        {boxes.map((lines, index) => (
+          <section className="profile-box skeleton" key={index} aria-hidden="true">
             <Bone className="bone--title" />
-            <Bone className="bone--line" />
-            <Bone className="bone--line bone--short" />
-          </div>
-        </header>
-        <Bone className="bone--line" />
-        <Bone className="bone--line" />
-        <Bone className="bone--line bone--short" />
-        <Bone className="bone--line" />
-        <Bone className="bone--line bone--short" />
+            {index === 0 ? (
+              <div className="therapist-detail__header">
+                <Bone className="bone--avatar bone--avatar-lg" />
+                <div>
+                  <Bone className="bone--title" />
+                  <Bone className="bone--line bone--short" />
+                </div>
+              </div>
+            ) : null}
+            {Array.from({ length: lines }, (_, line) => <Bone className="bone--line" key={line} />)}
+          </section>
+        ))}
       </div>
-      <aside className="reserve-card" aria-hidden="true">
+      <aside className="reserve-card skeleton" aria-hidden="true">
         <Bone className="bone--title" />
         <Bone className="bone--line" />
         <Bone className="bone--line" />
         <Bone className="bone--line bone--short" />
+        <Bone className="bone--button" />
         <Bone className="bone--button" />
       </aside>
     </div>
@@ -140,7 +144,7 @@ function StatSkeleton() {
       {Array.from({ length: 4 }, (_, index) => (
         <div key={index} aria-hidden="true">
           <Bone className="bone--line bone--short" />
-          <Bone className="bone--title" />
+          <Bone className="bone--stat" />
         </div>
       ))}
     </dl>
@@ -151,7 +155,7 @@ function FormSkeleton({ rows = 4 }) {
   return (
     <div className="stack-form" role="status" aria-label="در حال بارگذاری">
       {Array.from({ length: rows }, (_, index) => (
-        <span key={index}>
+        <span className="skeleton-field" key={index}>
           <Bone className="bone--label" />
           <Bone className="bone--field" />
         </span>
@@ -163,7 +167,9 @@ function FormSkeleton({ rows = 4 }) {
 function FaqSkeleton() {
   return (
     <div role="status" aria-label="در حال بارگذاری">
-      {Array.from({ length: 3 }, (_, index) => <Bone className="bone--faq" key={index} />)}
+      {Array.from({ length: 4 }, (_, index) => (
+        <div className="faq-item skeleton" key={index} aria-hidden="true"><Bone className="bone--faq" /></div>
+      ))}
     </div>
   );
 }
@@ -191,7 +197,7 @@ function HoursSkeleton() {
     <div className="hour-grid" role="status" aria-label="در حال بارگذاری">
       <span />
       {Array.from({ length: 7 }, (_, index) => <Bone className="bone--line" key={`day-${index}`} />)}
-      {Array.from({ length: 6 }, (_, row) => (
+      {Array.from({ length: 27 }, (_, row) => (
         <span key={row} style={{ display: "contents" }}>
           <Bone className="bone--line" />
           {Array.from({ length: 7 }, (_, column) => <Bone className="bone--cell" key={column} />)}
@@ -289,7 +295,7 @@ function ClientShell({ section, children }) {
   return (
     <div className="profile-shell">
       <aside className="profile-sidebar">
-        <Identity name={me.name || ""} caption="حساب مراجع" loading={waiting} />
+        <Identity name={me.name || ""} phone={me.phone || ""} loading={waiting} />
         <nav className="profile-menu" aria-label="بخش‌های حساب">
           {items.map(([key, href, icon, label]) => (
             <a className={section === key ? "profile-menu__item is-active" : "profile-menu__item"} key={key} href={href} aria-current={section === key ? "page" : undefined}>
@@ -301,7 +307,7 @@ function ClientShell({ section, children }) {
         </nav>
       </aside>
       <section className="profile-main">
-        <Identity name={me.name || ""} caption="حساب مراجع" bar loading={waiting} />
+        <Identity name={me.name || ""} phone={me.phone || ""} bar loading={waiting} />
         <nav className="section-links" aria-label="میانبرهای حساب">
           <a href="/therapists/">درمانگرها</a>
           <Logout compact />
@@ -338,7 +344,7 @@ function TherapistShell({ section, children }) {
   return (
     <div className="profile-shell">
       <aside className="profile-sidebar">
-        <Identity name={me.name || ""} caption={me.status || "درمانگر"} status={me.status_code} photo={me.photo} loading={waiting} />
+        <Identity name={me.name || ""} phone={me.phone || ""} photo={me.photo} loading={waiting} />
         <nav className="profile-menu" aria-label="بخش‌های درمانگر">
           {items.map(([key, href, icon, label]) => (
             <a className={section === key ? "profile-menu__item is-active" : "profile-menu__item"} key={key} href={href} aria-current={section === key ? "page" : undefined}>
@@ -349,7 +355,7 @@ function TherapistShell({ section, children }) {
         </nav>
       </aside>
       <section className="profile-main">
-        <Identity name={me.name || ""} caption={me.status || "درمانگر"} status={me.status_code} photo={me.photo} bar loading={waiting} />
+        <Identity name={me.name || ""} phone={me.phone || ""} photo={me.photo} bar loading={waiting} />
         <nav className="section-links" aria-label="میانبرهای درمانگر">
           <a href="/therapist/profile/">حساب کاربری</a>
           <a href="/therapist/notifications/">اعلانات</a>
@@ -371,13 +377,13 @@ function TherapistShell({ section, children }) {
   );
 }
 
-function Identity({ name, caption, status, photo, bar = false, loading = false }) {
+function Identity({ name, phone, photo, bar = false, loading = false }) {
   return (
     <div className={bar ? "profile-identity profile-identity--bar" : "profile-identity"}>
       {photo ? <img className="avatar" src={photo} alt="" /> : <span className="avatar avatar--icon"><Icon name="person" /></span>}
       <div>
         {loading ? <Bone className="bone--title" /> : <strong>{name}</strong>}
-        {loading ? <Bone className="bone--line bone--short" /> : status ? <Badge status={status}>{caption}</Badge> : <span>{caption}</span>}
+        {loading ? <Bone className="bone--line bone--short" /> : <span dir="ltr">{phone || "ثبت نشده"}</span>}
       </div>
       <ThemeButton />
     </div>
@@ -464,6 +470,20 @@ function Home() {
   );
 }
 
+function Crumb({ items }) {
+  return (
+    <nav className="breadcrumb" aria-label="مسیر">
+      <ol>
+        {items.map((item) => (
+          <li key={item.label}>
+            {item.href ? <a href={item.href}>{item.label}</a> : <span aria-current="page">{item.label}</span>}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
 function TherapistList() {
   const path = usePath();
   const query = new URLSearchParams(path.split("?")[1] || "").get("q") || "";
@@ -471,6 +491,7 @@ function TherapistList() {
   return (
     <section className="landing-section">
       <div className="landing-wrap">
+        <Crumb items={[{ label: "خانه", href: "/" }, { label: "درمانگرها" }]} />
         <p className="eyebrow">تأییدشده، با وقت آزاد</p>
         <h1>درمانگرها</h1>
         <form className="search-bar" role="search" onSubmit={(event) => { event.preventDefault(); go(`/therapists/?q=${encodeURIComponent(new FormData(event.currentTarget).get("q") || "")}`); }}>
@@ -504,7 +525,18 @@ function TherapistList() {
   );
 }
 
-function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
+const WEEK_COUNTS = [2, 4, 6, 8, 10, 12];
+
+function faCount(value) {
+  return String(value).replace(/\d/g, (digit) => "۰۱۲۳۴۵۶۷۸۹"[digit]);
+}
+
+function meetingSummary(items) {
+  if (items.length > 1) return `${items.length} جلسه`;
+  return items[0]?.label || "";
+}
+
+function ReserveDialog({ open, onClose, data, slug, initialSlotId = "", mode = "slots" }) {
   const dialog = useRef(null);
   const appliedSlot = useRef("");
   const weeks = data?.weeks || [];
@@ -512,6 +544,10 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
   const [dayKey, setDayKey] = useState("");
   const [step, setStep] = useState("time");
   const [slot, setSlot] = useState(null);
+  const [picks, setPicks] = useState([]);
+  const [weeklySlot, setWeeklySlot] = useState(null);
+  const [weekCount, setWeekCount] = useState(10);
+  const [plan, setPlan] = useState(null);
   const [pay, setPay] = useState(null);
   const [payError, setPayError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -526,18 +562,25 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
     appliedSlot.current = "";
     setStep("time");
     setSlot(null);
+    setPicks([]);
+    setWeeklySlot(null);
+    setWeekCount(10);
+    setPlan(null);
     setPay(null);
     setPayError("");
     setBusy(false);
   }, [open]);
   useEffect(() => {
     if (!open) return;
-    const first = weeks.findIndex((week) => week.days.some((day) => day.slots.length));
-    setWeekIndex(first < 0 ? 0 : first);
-    setDayKey("");
-  }, [open, weeks.length]);
+    const todayWeek = weeks.findIndex((week) => week.days.some((day) => day.badge === "امروز"));
+    const firstWithSlots = weeks.findIndex((week) => week.days.some((day) => day.slots.length));
+    const index = todayWeek >= 0 ? todayWeek : Math.max(firstWithSlots, 0);
+    setWeekIndex(index);
+    const today = weeks[index]?.days.find((day) => day.badge === "امروز" && day.slots.length);
+    setDayKey(today ? today.key : "");
+  }, [open, weeks]);
   useEffect(() => {
-    if (!open || !initialSlotId || !weeks.length || appliedSlot.current === String(initialSlotId)) return;
+    if (!open || mode === "weekly" || !initialSlotId || !weeks.length || appliedSlot.current === String(initialSlotId)) return;
     appliedSlot.current = String(initialSlotId);
     let found = null;
     let label = "";
@@ -553,33 +596,69 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
       setStep("time");
       return;
     }
-    setSlot({ id: found.id, time: found.time, label });
+    const nextSlot = { id: found.id, time: found.time, label };
+    setPicks([nextSlot]);
+    setSlot(nextSlot);
     setPay(null);
     setPayError("");
     setStep("pay");
-  }, [open, initialSlotId, weeks, data?.is_therapist]);
+  }, [open, mode, initialSlotId, weeks, data?.is_therapist]);
   useEffect(() => {
-    if (step !== "pay" || !slot || !data?.can_book) return undefined;
+    if (step !== "pay" || !data?.can_book || mode === "weekly" || picks.length !== 1) return undefined;
     let live = true;
     setPay(null);
     setPayError("");
-    api(`/api/book/${slug}/${slot.id}/`)
+    api(`/api/book/${slug}/${picks[0].id}/`)
       .then((result) => { if (live) setPay(result); })
       .catch((error) => { if (live) setPayError(error.message); });
     return () => { live = false; };
-  }, [step, slot, slug, data?.can_book]);
+  }, [step, picks, slug, data?.can_book, mode]);
   const week = weeks[weekIndex];
   const selected = week?.days.find((day) => day.key === dayKey);
+  const chosen = mode === "weekly" ? (plan?.meetings || []).filter((item) => item.available) : picks;
+  const summary = meetingSummary(chosen);
   function choose(item, day) {
     if (data?.is_therapist) return;
     const nextSlot = { id: item.id, time: item.time, label: `${day.label}، ساعت ${item.time}` };
-    if (!data?.can_book) {
-      dialog.current?.close();
-      go(`/accounts/login/?next=${encodeURIComponent(`/therapists/${slug}/?slot=${item.id}`)}`);
+    if (mode === "weekly") {
+      setWeeklySlot(nextSlot);
+      setPlan(null);
+      setPayError("");
+      setStep("count");
       return;
     }
-    setSlot(nextSlot);
-    setPay(null);
+    setPicks((current) => current.some((row) => row.id === item.id) ? current.filter((row) => row.id !== item.id) : [...current, nextSlot]);
+  }
+  async function loadPlan() {
+    if (!weeklySlot) return;
+    if (!data?.can_book) {
+      dialog.current?.close();
+      go(`/accounts/login/?next=${encodeURIComponent(`/therapists/${slug}/`)}`);
+      return;
+    }
+    setBusy(true);
+    setPayError("");
+    try {
+      const result = await api(`/api/book/${slug}/weekly/${weeklySlot.id}/?weeks=${weekCount}`);
+      setPlan(result);
+      setStep("plan");
+    } catch (error) {
+      setPayError(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function openPayment() {
+    if (!data?.can_book) {
+      dialog.current?.close();
+      go(`/accounts/login/?next=${encodeURIComponent(`/therapists/${slug}/`)}`);
+      return;
+    }
+    if (mode === "weekly" && plan) {
+      setPay({ amount: plan.amount, notice: plan.notice });
+    } else {
+      setPay({ amount: (Number(data?.session_price) * picks.length).toFixed(2), notice: data?.notice });
+    }
     setPayError("");
     setStep("pay");
   }
@@ -588,7 +667,18 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
     setBusy(true);
     setPayError("");
     try {
-      const result = await api(`/api/book/${slug}/${slot.id}/`, { method: "POST", body: new FormData(event.currentTarget) });
+      const body = new FormData(event.currentTarget);
+      let result;
+      if (mode === "weekly") {
+        body.append("weeks", String(weekCount));
+        body.append("meetings", String(plan?.available || chosen.length));
+        result = await api(`/api/book/${slug}/weekly/${weeklySlot.id}/`, { method: "POST", body });
+      } else if (picks.length > 1) {
+        picks.forEach((item) => body.append("slots", item.id));
+        result = await api(`/api/book/${slug}/many/`, { method: "POST", body });
+      } else {
+        result = await api(`/api/book/${slug}/${picks[0].id}/`, { method: "POST", body });
+      }
       setPay(result);
       setStep("success");
     } catch (error) {
@@ -597,45 +687,87 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
       setBusy(false);
     }
   }
-  const titles = { time: "انتخاب زمان", pay: "پرداخت", success: "رزرو ثبت شد" };
+  const titles = {
+    slots: { time: "انتخاب زمان", pay: "پرداخت", success: "رزرو ثبت شد" },
+    weekly: { time: "رزرو هفتگی", count: "چند هفته", plan: "جلسه‌های هفتگی", pay: "پرداخت", success: "رزرو ثبت شد" },
+  };
+  const title = (titles[mode] || titles.slots)[step] || "رزرو";
+  const hint = mode === "weekly"
+    ? "ساعتی را انتخاب کنید که هر هفته تکرار شود."
+    : (selected ? "یک یا چند ساعت را انتخاب کنید." : `یک روز را انتخاب کنید. وقت‌های امروز هم، اگر حداقل ${data?.notice ?? ""} ساعت دیگر باشند، قابل رزرو هستند.`);
   return (
     <dialog className="reserve-dialog" ref={dialog} onClose={onClose} onClick={(event) => { if (event.target === dialog.current) onClose(); }}>
       <div className="reserve-dialog__sheet">
         {step === "pay" ? null : (
           <div className="record-card__row">
-            <h2>{titles[step]}</h2>
-            <button className="secondary-button" type="button" onClick={onClose}>بستن</button>
+            <h2>{title}</h2>
+            <button className="reserve-close" type="button" onClick={onClose} aria-label="بستن"><Icon name="close" /></button>
           </div>
         )}
         {step === "time" ? (
           <>
+            {week ? <p className="muted reserve-hint">{hint}</p> : null}
             {week ? (
               <>
-                <div className="week-row">
-                  <button className="secondary-button" type="button" onClick={() => { setWeekIndex((value) => Math.max(0, value - 1)); setDayKey(""); }} disabled={weekIndex === 0}>هفته قبل</button>
-                  <strong>{week.days[0].number} {week.days[0].month}</strong>
-                  <button className="secondary-button" type="button" onClick={() => { setWeekIndex((value) => Math.min(weeks.length - 1, value + 1)); setDayKey(""); }} disabled={weekIndex >= weeks.length - 1}>هفته بعد</button>
-                </div>
-                <div className="week-days">
-                  {week.days.map((day) => (
-                    <button className={day.key === dayKey ? "week-day is-selected" : "week-day"} type="button" key={day.key} disabled={!day.slots.length} onClick={() => setDayKey(day.key)}>
-                      <span>{day.name}</span>
-                      <strong>{day.number}</strong>
-                    </button>
-                  ))}
+                <div className="week-strip">
+                  <button className="week-nav" type="button" aria-label="هفته قبل" onClick={() => { setWeekIndex((value) => Math.max(0, value - 1)); setDayKey(""); }} disabled={weekIndex === 0}><Icon name="chevron_right" /></button>
+                  <div className="week-days">
+                    {week.days.map((day) => (
+                      <button className={day.key === dayKey ? "week-day is-selected" : "week-day"} type="button" key={day.key} disabled={!day.slots.length} onClick={() => setDayKey(day.key)}>
+                        <span>{day.name}</span>
+                        <strong>{day.number}</strong>
+                        {day.badge ? <em className="week-day__badge">{day.badge}</em> : <em className="week-day__badge" />}
+                      </button>
+                    ))}
+                  </div>
+                  <button className="week-nav" type="button" aria-label="هفته بعد" onClick={() => { setWeekIndex((value) => Math.min(weeks.length - 1, value + 1)); setDayKey(""); }} disabled={weekIndex >= weeks.length - 1}><Icon name="chevron_left" /></button>
                 </div>
                 {selected ? (
                   <div className="time-list">
-                    {selected.slots.map((item) => <button className="time-chip" type="button" key={item.id} onClick={() => choose(item, selected)}>{item.time}</button>)}
+                    {selected.slots.map((item) => {
+                      const picked = mode !== "weekly" && picks.some((row) => row.id === item.id);
+                      return <button className={picked ? "time-chip is-selected" : "time-chip"} type="button" key={item.id} onClick={() => choose(item, selected)}>{item.time}</button>;
+                    })}
                   </div>
-                ) : <p className="muted">یک روز را انتخاب کنید تا ساعت‌های آزاد دیده شود.</p>}
+                ) : null}
+                {mode !== "weekly" && picks.length > 1 ? <p className="muted">{picks.length} جلسه انتخاب شده است.</p> : null}
+                {mode !== "weekly" ? <button className="primary-button" type="button" disabled={!picks.length} onClick={openPayment}>ادامه</button> : null}
               </>
             ) : <p className="empty-state">فعلاً وقت آزادی نیست.</p>}
             <Alert>{payError}</Alert>
             {data?.is_therapist ? <p className="schedule-note">رزرو از حساب درمانگر انجام نمی‌شود.</p> : null}
           </>
         ) : null}
-        {step === "pay" && slot ? (
+        {step === "count" && weeklySlot ? (
+          <div className="week-count">
+            <p className="muted">هر هفته همان ساعت {weeklySlot.time}.</p>
+            <p id="week-count-label">تعداد هفته</p>
+            <div className="time-list" role="radiogroup" aria-labelledby="week-count-label">
+              {WEEK_COUNTS.map((count) => (
+                <button className={count === weekCount ? "time-chip is-selected" : "time-chip"} type="button" role="radio" aria-checked={count === weekCount} key={count} onClick={() => setWeekCount(count)}>{faCount(count)}</button>
+              ))}
+            </div>
+            <button className="primary-button" type="button" disabled={busy} onClick={loadPlan}>{busy ? "در حال بررسی…" : "نمایش جلسه‌ها"}</button>
+            <Alert>{payError}</Alert>
+          </div>
+        ) : null}
+        {step === "plan" && plan ? (
+          <>
+            <p className="muted">{plan.available} جلسه از {plan.weeks} هفته آزاد است.</p>
+            {plan.meetings.some((item) => !item.available) ? (
+              <ul className="series-list">
+                {plan.meetings.filter((item) => !item.available).map((item) => (
+                  <li className="is-closed" key={item.label}>
+                    <span>{item.label}</span>
+                    <span>{item.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {plan.available >= 2 ? <button className="primary-button" type="button" onClick={openPayment}>ادامه و پرداخت</button> : <p className="schedule-note">برای رزرو هفتگی حداقل دو هفته آزاد لازم است.</p>}
+          </>
+        ) : null}
+        {step === "pay" && chosen.length ? (
           <>
             <div className="reserve-person">
               {data?.therapist?.photo ? <img className="avatar" src={data.therapist.photo} alt="" /> : <span className="avatar">{(data?.therapist?.name || "د").slice(0, 1)}</span>}
@@ -644,13 +776,13 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
             </div>
             <p className="muted">حداقل اطلاع قبلی {data?.notice ?? pay?.notice} ساعت است.</p>
             <div className="reserve-when">
-              <button className="reserve-edit" type="button" onClick={() => { setStep("time"); setPayError(""); }}>
+              <button className="reserve-edit" type="button" onClick={() => { setStep(mode === "weekly" ? "plan" : "time"); setPayError(""); }}>
                 <Icon name="edit" />
                 تغییر زمان
               </button>
-              <strong>{slot.label}</strong>
+              <strong>{summary}</strong>
             </div>
-            {!data?.can_book ? <a className="primary-button" href={`/accounts/login/?next=${encodeURIComponent(`/therapists/${slug}/?slot=${slot.id}`)}`}>ورود برای پرداخت</a> : null}
+            {!data?.can_book ? <a className="primary-button" href={`/accounts/login/?next=${encodeURIComponent(`/therapists/${slug}/`)}`}>ورود برای پرداخت</a> : null}
             {data?.can_book && !pay && !payError ? <FormSkeleton rows={4} /> : null}
             <Alert>{payError}</Alert>
             {data?.can_book && pay ? (
@@ -668,13 +800,12 @@ function ReserveDialog({ open, onClose, data, slug, initialSlotId = "" }) {
             ) : null}
           </>
         ) : null}
-        {step === "success" && slot ? (
+        {step === "success" && chosen.length ? (
           <div className="reserve-success">
             <Icon name="check_circle" />
             <p>{pay?.message || "رسید ثبت شد و درمانگر آن را می‌بیند."}</p>
-            <p className="muted">{slot.label}</p>
+            <p className="muted">{summary}</p>
             <a className="primary-button" href="/profile/payments/">دیدن پرداخت‌ها</a>
-            <button className="secondary-button" type="button" onClick={onClose}>بستن</button>
           </div>
         ) : null}
       </div>
@@ -687,9 +818,17 @@ function TherapistDetail({ slug }) {
   const requestedSlot = new URLSearchParams(path.split("?")[1] || "").get("slot") || "";
   const { loading, error, data } = useFetch(`/api/therapists/${slug}/`);
   const [reserveOpen, setReserveOpen] = useState(Boolean(requestedSlot));
+  const [reserveMode, setReserveMode] = useState("slots");
   useEffect(() => {
-    if (requestedSlot) setReserveOpen(true);
+    if (requestedSlot) {
+      setReserveMode("slots");
+      setReserveOpen(true);
+    }
   }, [requestedSlot]);
+  function openReserve(mode) {
+    setReserveMode(mode);
+    setReserveOpen(true);
+  }
   function closeReserve() {
     setReserveOpen(false);
     if (!requestedSlot) return;
@@ -701,7 +840,7 @@ function TherapistDetail({ slug }) {
   return (
     <article className="landing-section">
       <div className="landing-wrap">
-        <p className="eyebrow"><a href="/therapists/">درمانگرها</a></p>
+        <Crumb items={[{ label: "خانه", href: "/" }, { label: "درمانگرها", href: "/therapists/" }, { label: item?.name || "درمانگر" }]} />
         <Alert>{error}</Alert>
         {loading && !item ? <DetailSkeleton /> : null}
         {item ? (
@@ -756,10 +895,11 @@ function TherapistDetail({ slug }) {
                 <div><dt>مدت جلسه</dt><dd>{data.duration}</dd></div>
                 <div><dt>قیمت جلسه</dt><dd>{item.price}</dd></div>
               </dl>
-              <button className="primary-button" type="button" onClick={() => setReserveOpen(true)} disabled={!hasTimes}>رزرو</button>
+              <button className="primary-button" type="button" onClick={() => openReserve("slots")} disabled={!hasTimes}>رزرو</button>
+              <button className="secondary-button" type="button" onClick={() => openReserve("weekly")} disabled={!hasTimes}>رزرو هفتگی</button>
               {!hasTimes ? <p className="schedule-note">فعلاً وقت آزادی در ۳۰ روز آینده نیست.</p> : null}
             </aside>
-            <ReserveDialog open={reserveOpen} onClose={closeReserve} data={data} slug={item.slug} initialSlotId={requestedSlot} />
+            <ReserveDialog open={reserveOpen} onClose={closeReserve} data={data} slug={item.slug} initialSlotId={requestedSlot} mode={reserveMode} />
           </div>
         ) : null}
       </div>
@@ -842,6 +982,8 @@ function Register() {
       <form className="stack-form" onSubmit={submit}>
         <label htmlFor="first_name">نام</label>
         <input id="first_name" name="first_name" required />
+        <label htmlFor="phone">شماره تماس</label>
+        <input id="phone" name="phone" inputMode="tel" autoComplete="tel" />
         <label htmlFor="username">نام کاربری</label>
         <input id="username" name="username" autoComplete="username" required />
         <label htmlFor="email">ایمیل</label>
@@ -977,6 +1119,8 @@ function TherapistRegister() {
         <input id="username" name="username" required />
         <label htmlFor="email">ایمیل</label>
         <input id="email" name="email" type="email" required />
+        <label htmlFor="therapist-phone">شماره تماس</label>
+        <input id="therapist-phone" name="phone" inputMode="tel" autoComplete="tel" />
         <label htmlFor="password1">گذرواژه</label>
         <input id="password1" name="password1" type="password" required />
         <label htmlFor="password2">تکرار گذرواژه</label>
@@ -1116,6 +1260,8 @@ function ClientAccount() {
         <form className="stack-form" onSubmit={submit}>
           <label htmlFor="account-name">نام</label>
           <input id="account-name" name="first_name" defaultValue={data.first_name} required />
+          <label htmlFor="account-phone">شماره تماس</label>
+          <input id="account-phone" name="phone" inputMode="tel" autoComplete="tel" defaultValue={data.phone || ""} />
           <label htmlFor="account-email">ایمیل</label>
           <input id="account-email" name="email" type="email" defaultValue={data.email} required />
           <label htmlFor="account-telegram">تلگرام</label>
@@ -1167,9 +1313,9 @@ function ClientSessions() {
                 <div className="calendar__day" key={`${day.day}-${index}`}>
                   <strong>{day.day}</strong>
                   {day.items.map((item) => (
-                    <span key={`${item.time}-${item.name}`}>
-                      <Badge status={item.status}>{item.time}</Badge>
+                    <span className="calendar-session" key={`${item.time}-${item.name}`}>
                       <small>{item.name}</small>
+                      <Badge status={item.status}>{item.time}</Badge>
                     </span>
                   ))}
                 </div>

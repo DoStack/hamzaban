@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -51,7 +52,11 @@ from therapy.services import (
     accept_receipt,
     add_closure,
     booking_weeks,
+    accepts_notice,
+    book_slots,
     book_slot,
+    book_weekly,
+    weekly_plan,
     cancel_booking,
     complete_booking,
     ensure_daily_card,
@@ -75,6 +80,15 @@ def _json(data, status=200):
 
 def _ok(**data):
     return _json({"ok": True, **data})
+
+
+def _clean_phone(value):
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if not re.fullmatch(r"[0-9+\- ]{8,20}", text):
+        return None
+    return text
 
 
 def _fail(message, status=400, errors=None):
@@ -196,19 +210,26 @@ def me(request):
     photo = ""
     status = ""
     status_code = ""
+    phone = ""
     if is_therapist(user):
         profile = getattr(user, "therapist_profile", None)
         if profile is not None:
             status = profile.get_status_display()
             status_code = profile.status.lower()
+            phone = profile.phone
             if profile.photo:
                 photo = reverse("therapist_photo", args=[profile.slug])
+    else:
+        profile = getattr(user, "client_profile", None)
+        if profile is not None:
+            phone = profile.phone
     return _ok(
         authenticated=True,
         is_therapist=is_therapist(user),
         is_staff=user.is_staff,
         name=_person(user),
         username=user.get_username(),
+        phone=phone,
         photo=photo,
         status=status,
         status_code=status_code,
@@ -300,6 +321,7 @@ def therapist_detail_api(request, slug):
         weeks=booking_weeks(profile),
         duration=f"{str(SLOT_MINUTES).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))} دقیقه",
         notice=profile.min_notice_hours,
+        session_price=str(profile.session_price),
         can_book=request.user.is_authenticated and not is_therapist(request.user),
         is_therapist=is_therapist(request.user),
     )
@@ -319,7 +341,7 @@ def book_api(request, slug, slot_id):
         status=Slot.Status.OPEN,
         starts_at__gte=timezone.now() + timedelta(hours=profile.min_notice_hours),
     ).first()
-    if slot is None:
+    if slot is None or not accepts_notice(profile, slot.starts_at):
         return _fail("این وقت دیگر آزاد نیست.", 404)
     if request.method == "GET":
         return _ok(therapist=profile.display_name, when=slot_when(slot), amount=str(profile.session_price), notice=profile.min_notice_hours)
@@ -336,9 +358,108 @@ def book_api(request, slug, slot_id):
                 form.cleaned_data.get("attachment"),
                 form.cleaned_data.get("note", ""),
             )
-        except SlotTaken:
-            return _fail("این وقت همین حالا گرفته شد. وقت دیگری را انتخاب کنید.", 409)
+        except SlotTaken as exc:
+            return _fail(str(exc) or "این وقت همین حالا گرفته شد. وقت دیگری را انتخاب کنید.", 409)
     return _ok(next=reverse("client_payments"), message="رسید ثبت شد و درمانگر آن را می‌بیند.")
+
+
+def _booking_profile(request, slug):
+    if not request.user.is_authenticated:
+        return None, _fail("برای رزرو وارد شوید.", 401)
+    if is_therapist(request.user):
+        return None, _fail("رزرو از حساب درمانگر انجام نمی‌شود.", 403)
+    profile = public_profile(slug)
+    if profile is None:
+        return None, _fail("درمانگر پیدا نشد.", 404)
+    return profile, None
+
+
+@require_POST
+def book_many_api(request, slug):
+    profile, error = _booking_profile(request, slug)
+    if error is not None:
+        return error
+    raw_ids = request.POST.getlist("slots")
+    if len(raw_ids) < 2 or len(raw_ids) != len(set(raw_ids)):
+        return _fail("حداقل دو وقت جدا انتخاب کنید.", 400)
+    try:
+        ids = [int(item) for item in raw_ids]
+    except ValueError:
+        return _fail("وقت‌های انتخاب‌شده معتبر نیست.", 400)
+    slots = list(profile.slots.filter(pk__in=ids, status=Slot.Status.OPEN))
+    if len(slots) != len(ids):
+        return _fail("یکی از وقت‌ها دیگر آزاد نیست.", 409)
+    with translation.override("fa"):
+        form = ReceiptForm(request.POST, request.FILES, initial={"amount": profile.session_price * len(slots)})
+        if not form.is_valid():
+            return _form_fail(form)
+        try:
+            book_slots(
+                slots,
+                request.user,
+                form.cleaned_data["amount"],
+                form.cleaned_data["reference"],
+                form.cleaned_data.get("attachment"),
+                form.cleaned_data.get("note", ""),
+            )
+        except SlotTaken as exc:
+            return _fail(str(exc) or "یکی از وقت‌ها همین حالا گرفته شد.", 409)
+    return _ok(next=reverse("client_payments"), message="رسید جلسه‌ها ثبت شد و درمانگر آن را می‌بیند.")
+
+
+@require_http_methods(["GET", "POST"])
+def book_weekly_api(request, slug, slot_id):
+    if request.method == "GET" and not request.user.is_authenticated:
+        return _fail("برای رزرو وارد شوید.", 401)
+    if is_therapist(request.user):
+        return _fail("رزرو از حساب درمانگر انجام نمی‌شود.", 403)
+    profile = public_profile(slug)
+    if profile is None:
+        return _fail("درمانگر پیدا نشد.", 404)
+    anchor = profile.slots.filter(pk=slot_id).first()
+    if anchor is None:
+        return _fail("این وقت دیگر آزاد نیست.", 404)
+    raw_count = request.GET.get("weeks") if request.method == "GET" else request.POST.get("weeks")
+    try:
+        count = int(raw_count or "0")
+        plan = weekly_plan(profile, anchor, count)
+    except (TypeError, ValueError):
+        return _fail("تعداد هفته را از ۲، ۴، ۶، ۸، ۱۰ یا ۱۲ انتخاب کنید.", 400)
+    available = [item for item in plan if item["available"]]
+    if request.method == "GET":
+        return _ok(
+            weeks=count,
+            meetings=[{"label": item["label"], "time": item["time"], "available": item["available"], "reason": item["reason"]} for item in plan],
+            available=len(available),
+            amount=str(profile.session_price * len(available)),
+            notice=profile.min_notice_hours,
+        )
+    profile, error = _booking_profile(request, slug)
+    if error is not None:
+        return error
+    try:
+        expected = int(request.POST.get("meetings") or "0")
+    except ValueError:
+        return _fail("تعداد جلسه‌ها معتبر نیست.", 400)
+    with translation.override("fa"):
+        form = ReceiptForm(request.POST, request.FILES, initial={"amount": profile.session_price * len(available)})
+        if not form.is_valid():
+            return _form_fail(form)
+        try:
+            book_weekly(
+                profile,
+                anchor,
+                count,
+                request.user,
+                form.cleaned_data["amount"],
+                form.cleaned_data["reference"],
+                form.cleaned_data.get("attachment"),
+                form.cleaned_data.get("note", ""),
+                expected,
+            )
+        except SlotTaken as exc:
+            return _fail(str(exc) or "یکی از هفته‌ها همین حالا گرفته شد.", 409)
+    return _ok(next=reverse("client_payments"), message="رزرو هفتگی ثبت شد و درمانگر آن را می‌بیند.")
 
 
 def _client_calendar(user, year, month):
@@ -465,7 +586,12 @@ def client_home_api(request):
 def client_account_api(request):
     profile, _created = ClientProfile.objects.get_or_create(user=request.user)
     if request.method == "GET":
-        return _ok(first_name=request.user.first_name, email=request.user.email, telegram=profile.telegram_username)
+        return _ok(
+            first_name=request.user.first_name,
+            email=request.user.email,
+            telegram=profile.telegram_username,
+            phone=profile.phone,
+        )
     data = _body(request)
     first_name = (data.get("first_name") or "").strip()
     email = (data.get("email") or "").strip().lower()
@@ -483,12 +609,22 @@ def client_account_api(request):
     form = TelegramForm(data)
     if not form.is_valid():
         return _form_fail(form)
+    phone = _clean_phone(data.get("phone"))
+    if phone is None:
+        return _fail("شماره تماس معتبر نیست.")
     request.user.first_name = first_name
     request.user.email = email
     request.user.save(update_fields=["first_name", "email"])
     profile.telegram_username = form.cleaned_data["telegram_username"]
-    profile.save(update_fields=["telegram_username"])
-    return _ok(message="پروفایل ذخیره شد.", first_name=first_name, email=email, telegram=profile.telegram_username)
+    profile.phone = phone
+    profile.save(update_fields=["telegram_username", "phone"])
+    return _ok(
+        message="پروفایل ذخیره شد.",
+        first_name=first_name,
+        email=email,
+        telegram=profile.telegram_username,
+        phone=profile.phone,
+    )
 
 
 @_client_required

@@ -6,6 +6,12 @@
 {% block content %}
 <section class="landing-section" aria-labelledby="therapist-heading">
     <div class="landing-wrap">
+        <nav class="breadcrumb" aria-label="مسیر">
+            <ol>
+                <li><a href="{% url 'home' %}">خانه</a></li>
+                <li><span aria-current="page">درمانگرها</span></li>
+            </ol>
+        </nav>
         <p class="eyebrow">تأییدشده، با وقت آزاد</p>
         <h1 id="therapist-heading">درمانگرها</h1>
         <form class="search-bar" method="get" role="search">
